@@ -2,7 +2,7 @@
 
 works on "ansible-inventory" to initiate a ssh session with a defined host in an ansible inventory
 
-```
+
 ### Prerequisites
 
 * python 3.5 or greater
@@ -10,8 +10,9 @@ works on "ansible-inventory" to initiate a ssh session with a defined host in an
 
 ### Installing
 
-clone the project and install it.
 ```sh
+clone the project and install it.
+
 git clone https://github.com/alex-left/ansible-tty
 cd ansible-tty
 sudo python3 setup.py Install
@@ -19,7 +20,7 @@ sudo python3 setup.py Install
 ```
 
 ## Usage
-```
+```sh
 usage: ansible-tty [-h] [-i INVENTORY] [hostname]
 
 Init an ssh interactive terminal using ansible inventories
