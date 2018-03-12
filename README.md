@@ -10,9 +10,9 @@ works on "ansible-inventory" to initiate a ssh session with a defined host in an
 
 ### Installing
 
-```sh
-clone the project and install it.
 
+clone the project and install it.
+```sh
 git clone https://github.com/alex-left/ansible-tty
 cd ansible-tty
 sudo python3 setup.py Install
