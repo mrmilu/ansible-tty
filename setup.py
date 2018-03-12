@@ -10,5 +10,5 @@ setup(
     version='0.1',
     scripts=['ansible-tty'],
     license='GPL-v3',
-    long_description=open('README').read(),
+    long_description=open('README.md').read(),
 )
