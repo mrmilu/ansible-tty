@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+import json, subprocess, shutil, argparse, sys
+
+
+def check_python_version():
+    if not sys.version_info[:2] >= (3, 5):
+        print("You need python 3.5 or greeter")
+        exit(1)
+
+def check_executable():
+    if shutil.which('ansible-inventory') is None:
+        print("Can't find ansible-inventory executable.")
+        print("You must have installed ansible >=2.4")
+        exit(1)
+
+
+def parser_args():
+    parser = argparse.ArgumentParser(
+             description="""Init an ssh interactive terminal using ansible inventories""")
+
+    parser.add_argument("-i", "--inventory", nargs=1, required=False,
+                              help='''use a especific ansible inventory''',
+                              type=str)
+
+    parser.add_argument("hostname", action="store", type=str, default=None, nargs='?',
+                            help='''Try to filter and connect to unique hostname''',
+                            )
+
+
+    return parser.parse_args()
+
+
+def get_inventory(inventory_path):
+    ''' receive and inventory path (string) from argparse (his value could be None)
+    and run "ansible-inventory" with custom or default inventory.
+    return an ansible inventory in json format'''
+    ansible_cmd = ['ansible-inventory']
+    if inventory_path:
+        ansible_cmd.extend(["-i", *inventory_path])
+    ansible_cmd.extend(["--list"])
+    proc = subprocess.run(ansible_cmd, stdout=subprocess.PIPE)
+    if proc.returncode != 0:
+        print(proc.stdout.decode('utf-8'))
+        exit(proc.returncode)
+    return json.loads(proc.stdout.decode('utf-8'))
+
+
+def get_host(inventory, hostname):
+    ''' receive an ansible inventory in json format
+    since ["_meta"]["hostvars"] keys and the desired hostname from argparse
+    returns a string with a valid hostname'''
+    hostlist = list(inventory.keys())
+    if hostname in hostlist:
+        return hostname
+    elif hostname and hostname not in hostlist:
+        print(hostname, "not finded.")
+    if "localhost" in hostlist:
+        hostlist.remove("localhost")
+    if len(hostlist) == 1:
+        return hostlist[0]
+    print("Available hosts: ")
+    for pos, host in enumerate(hostlist):
+        if "ansible_host" in inventory[host]:
+            line = [host, inventory[host]["ansible_host"]]
+            if 'ec2_tag_Name' in inventory[host]:
+                line.append(inventory[host]['ec2_tag_Name'])
+            print("\t", str(pos) + ":", " - ".join(line))
+    option = int(input("Choose a host: "))
+    while option not in range(len(hostlist)):
+        option = int(input("Choose a valid option: "))
+    return hostlist[option]
+
+
+def run_ssh(inventory_host):
+    ''' receive an ansible inventory of single host in json format, check optional args
+    check private_key and run ssh command to launch the remote session'''
+    ssh_cmd = ['ssh', inventory_host['ansible_user']+'@'+inventory_host['ansible_host']]
+    if 'ansible_ssh_private_key_file' in inventory_host:
+        ssh_cmd.extend(['-i', inventory_host['ansible_ssh_private_key_file']])
+    if 'ansible_ssh_extra_args' in inventory_host:
+        ssh_cmd.extend([inventory_host['ansible_ssh_extra_args']])
+    subprocess.run(ssh_cmd)
+
+
+check_python_version()
+args = parser_args()
+hostname = args.hostname
+inventory_path = args.inventory
+check_executable()
+meta_inventory = get_inventory(inventory_path)["_meta"]["hostvars"]
+inventory_host = meta_inventory[get_host(meta_inventory, hostname)]
+run_ssh(inventory_host)
