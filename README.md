@@ -13,6 +13,7 @@ Tested in ubuntu, debian and arch linux,  but should be work on almost linux sys
 
 ## Install
 
+
 clone the project and install it.
 ```sh
 git clone https://github.com/alex-left/ansible-tty
@@ -22,7 +23,7 @@ sudo python3 setup.py install
 ```
 
 ## Usage
-```
+```sh
 usage: ansible-tty [-h] [-i INVENTORY] [hostname]
 
 Init an ssh interactive terminal using ansible inventories
