@@ -88,11 +88,16 @@ def run_ssh(inventory_host):
     subprocess.run(ssh_cmd)
 
 
-check_python_version()
-args = parser_args()
-hostname = args.hostname
-inventory_path = args.inventory
-check_executable()
-meta_inventory = get_inventory(inventory_path)["_meta"]["hostvars"]
-inventory_host = meta_inventory[get_host(meta_inventory, hostname)]
-run_ssh(inventory_host)
+def main():
+    check_python_version()
+    args = parser_args()
+    hostname = args.hostname
+    inventory_path = args.inventory
+    check_executable()
+    meta_inventory = get_inventory(inventory_path)["_meta"]["hostvars"]
+    inventory_host = meta_inventory[get_host(meta_inventory, hostname)]
+    run_ssh(inventory_host)
+
+
+if __name__ == "__main__":
+    main()
