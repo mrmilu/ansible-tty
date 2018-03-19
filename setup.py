@@ -6,7 +6,7 @@ setup(
     description='Initiate a session ssh over ansible-inventory',
     author='Alex Left',
     author_email='aizquierdo@mrmilu.com',
-    url='https://github.com/mrmilu/ansible-tty,
+    url='https://github.com/mrmilu/ansible-tty',
     version='0.1',
     scripts=['ansible-tty'],
     license='GPL-v3',
