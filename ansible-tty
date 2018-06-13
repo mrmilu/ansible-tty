@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, subprocess, shutil, argparse, sys
+import json, subprocess, shutil, argparse, sys, termios
 
 
 def check_python_version():
@@ -39,6 +39,7 @@ def get_inventory(inventory_path):
     if inventory_path:
         ansible_cmd.extend(["-i", *inventory_path])
     ansible_cmd.extend(["--list"])
+    print("getting inventory... please wait")
     proc = subprocess.run(ansible_cmd, stdout=subprocess.PIPE)
     if proc.returncode != 0:
         print(proc.stdout.decode('utf-8'))
@@ -68,9 +69,13 @@ def get_host(inventory, hostname):
             if 'ec2_tag_Name' in inventory[host]:
                 line.append(inventory[host]['ec2_tag_Name'])
             print("\t", str(pos) + ":", " - ".join(line))
-    option = int(input("Choose a host: "))
+    option = None
+    termios.tcflush(sys.stdin, termios.TCIOFLUSH)
     while option not in range(len(hostlist)):
-        option = int(input("Choose a valid option: "))
+        try:
+            option = int(input("choose a valid option or press CRTL + C to exit: \n"))
+        except ValueError:
+            pass
     return hostlist[option]
 
 
