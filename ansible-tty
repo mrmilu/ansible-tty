@@ -19,6 +19,7 @@ import shutil
 import argparse
 import sys
 import termios
+import os
 
 
 def check_python_version():
@@ -53,7 +54,7 @@ def get_inventory(inventory_path):
     and run "ansible-inventory" with custom or default inventory.
     return an ansible inventory in json format'''
     ansible_cmd = ['ansible-inventory']
-    if inventory_path:
+    if inventory_path and os.path.exists(inventory_path[0]):
         ansible_cmd.extend(["-i", *inventory_path])
     ansible_cmd.extend(["--list"])
     print("getting inventory... please wait")
