@@ -46,7 +46,8 @@ def parser_args():
 
     parser.add_argument("hostname", action="store", type=str,
                         default=None, nargs='?',
-                        help='''Try to filter and connect to the unique hostname''',)
+                        help='''Try to filter and connect
+                        to the unique hostname''')
 
     return parser.parse_args()
 
@@ -80,7 +81,7 @@ def get_host(inventory, hostname):
     if "localhost" in hostlist:
         hostlist.remove("localhost")
     if len(hostlist) == 1:
-        if not 'ansible_host' in inventory[hostlist[0]]:
+        if 'ansible_host' not in inventory[hostlist[0]]:
             inventory[hostlist[0]]['ansible_host'] = hostlist[0]
         return hostlist[0]
     print("Available hosts: ")
@@ -103,8 +104,11 @@ def get_host(inventory, hostname):
 
 
 def run_ssh(inventory_host):
-    ''' receive an ansible inventory of single host in json format, check optional args,
-    check private_key and run ssh command to launch the remote session'''
+    '''
+    Receive an ansible inventory of single host in json format,
+    check optional args, check private_key and run ssh command to launch
+    the remote session.
+    '''
     ssh_cmd = ['ssh', inventory_host['ansible_user'] +
                '@'+inventory_host['ansible_host']]
     if 'ansible_ssh_private_key_file' in inventory_host:
