@@ -37,13 +37,15 @@ def check_executable():
 
 def parser_args():
     parser = argparse.ArgumentParser(
-             description="""Init an ssh interactive terminal using ansible inventories""")
+             description="""Init an ssh interactive terminal
+                using ansible inventories""")
 
     parser.add_argument("-i", "--inventory", nargs=1, required=False,
                               help='''use a specific ansible inventory''',
                               type=str)
 
-    parser.add_argument("hostname", action="store", type=str, default=None, nargs='?',
+    parser.add_argument("hostname", action="store", type=str,
+                        default=None, nargs='?',
                         help='''Try to filter and connect to the unique hostname''',)
 
     return parser.parse_args()
