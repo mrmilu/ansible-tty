@@ -9,10 +9,9 @@ open a ssh session with a defined host in an ansible inventory
 * ansible 2.4 or greater
 * openssh client (present in most systems)
 
-Tested in ubuntu, debian and arch linux,  but should be work on almost linux systems
+Tested in ubuntu, debian, alpine and arch linux, but should be work on almost linux systems
 
 ## Install
-
 
 clone the project and install it.
 ```sh
@@ -20,6 +19,31 @@ git clone https://github.com/alex-left/ansible-tty
 cd ansible-tty
 sudo python3 setup.py install
 
+```
+Or via pip:
+```
+pip3 install https://github.com/mrmilu/ansible-tty/archive/master.zip
+```
+
+## Via docker
+You can use the public image of docker:
+```
+docker pull mrmiludevops/ansible-tty
+```
+
+you should use it binding some read-only volumes, for example you maybe want
+access to your ssh keys or aws profiles and sure you will want read your ansible's inventory
+```
+docker run --rm -it \
+-v $(pwd):/workdir:ro  \
+-v $HOME/.ssh/:/root/.ssh/:ro \
+-v $HOME/.aws/:/root/.aws/:ro \
+mrmiludevops/ansible-tty -i [your inventory]
+```
+
+Also you can build you own image:
+```
+docker build -t ansible-tty .
 ```
 
 ## Usage
