@@ -23,7 +23,7 @@ import termios
 import os
 from tabulate import tabulate
 
-
+EXECUTABLES = ["ssh", "ansible-inventory"]
 OPTIONAL_SSH_VARS = [
     {
         "key": 'ansible_ssh_private_key_file',
@@ -51,10 +51,11 @@ def check_python_version():
 
 
 def check_executable():
-    if shutil.which('ansible-inventory') is None:
-        print("Can't find ansible-inventory executable.")
-        print("You must have installed ansible >=2.4")
-        raise SystemExit(1)
+    for executable in EXECUTABLES:
+        if shutil.which(executable) is None:
+            print("Can't find {} executable".format(executable))
+            print("You must have installed ansible >=2.4 and ssh client")
+            raise SystemExit(1)
 
 
 def parser_args():
@@ -64,6 +65,10 @@ def parser_args():
 
     parser.add_argument("-i", "--inventory", required=False,
                               help='''use a specific ansible inventory''',
+                              type=str)
+
+    parser.add_argument("-k", "--key", required=False,
+                              help='''use a specific private ssh keyfile''',
                               type=str)
 
     parser.add_argument("hostname", action="store", type=str,
@@ -154,6 +159,15 @@ def compose_ssh_cmd(hostvars):
             if opt["flag"]:
                 ssh_cmd.extend([opt["flag"]])
             ssh_cmd.extend([str(hostvars[opt["key"]])])
+    if private_key:
+        try:
+            private_key_flag = ssh_cmd.index("-i")
+        except:
+            private_key_flag = None
+        if private_key_flag:
+            ssh_cmd[private_key_flag+1] = private_key
+        else:
+            ssh_cmd.extend(["-i", private_key])
     return ssh_cmd
 
 
@@ -163,6 +177,8 @@ def main():
     args = parser_args()
     hostname = args.hostname
     inventory_path = args.inventory
+    global private_key
+    private_key = args.key
     inventory = get_inventory(inventory_path)
     inventory_host = get_host_vars(inventory, hostname)
     subprocess.run(compose_ssh_cmd(inventory_host))
