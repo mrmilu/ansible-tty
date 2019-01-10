@@ -25,6 +25,11 @@ Or via pip:
 pip3 install https://github.com/mrmilu/ansible-tty/archive/master.zip
 ```
 
+Or download the binary:
+```
+wget https://github.com/mrmilu/ansible-tty/releases/download/v0.4/ansible-tty-linux64 && chmod +x ansible-tty
+```
+
 ## Via docker
 You can use the public image of docker:
 ```
