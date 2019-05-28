@@ -26,10 +26,15 @@ pip3 install https://github.com/mrmilu/ansible-tty/archive/master.zip
 ```
 
 Or download the binary:
-```
-wget https://github.com/mrmilu/ansible-tty/releases/download/v0.4/ansible-tty-linux64 && chmod +x ansible-tty
-```
 
+Linux
+```
+wget https://github.com/mrmilu/ansible-tty/releases/download/v0.4/ansible-tty-linux64 && mv ansible-tty-linux64 ansisble-tty && chmod +x ansible-tty
+```
+Mac
+```
+wget https://github.com/mrmilu/ansible-tty/releases/download/v0.4/ansible-tty-macos64.macos && mv ansible-tty-macos64.macos ansisble-tty && chmod +x ansible-tty
+```
 ## Via docker
 You can use the public image of docker:
 ```
