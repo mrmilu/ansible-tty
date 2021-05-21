@@ -106,10 +106,10 @@ def choose_host(inventory):
     print("Choose a host:")
     lines = sorted([
                 [
-                    host,
                     all_hostvars[host].get("ansible_host", None),
                     all_hostvars[host].get("ansible_ssh_host", None),
-                    all_hostvars[host].get("ec2_tag_Name", None)
+                    all_hostvars[host].get("tags", {}).get("Name", None), # works with aws inventory plugin
+                    all_hostvars[host].get("ec2_tag_Name", None) # works with aws inventory script
                 ]
                 for host in all_hostvars
             ])
