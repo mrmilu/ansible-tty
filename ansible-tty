@@ -1,187 +1,209 @@
 #!/usr/bin/env python3
-'''
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+"""
+This script facilitates SSH connections using Ansible inventory. It ensures the environment is set up correctly and then
+establishes an SSH connection to a specified host from the inventory. It requires Python 3.5 or greater and depends on
+the 'prettytable' module for displaying tables in the terminal.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-'''
+License: GNU General Public License v3 or later (GPLv3+)
+"""
 
 import json
 import subprocess
 import shutil
 import argparse
 import sys
-import termios
 import os
-from tabulate import tabulate
+from prettytable import PrettyTable
+from typing import Any, Dict, List, Optional
 
-EXECUTABLES = ["ssh", "ansible-inventory"]
+# List of required executables
+REQUIRED_EXECUTABLES = ["ssh", "ansible-inventory"]
+
+# SSH variables that might be optionally included in the Ansible host vars
 OPTIONAL_SSH_VARS = [
-    {
-        "key": 'ansible_ssh_private_key_file',
-        "flag": '-i'
-    },
-    {
-        "key": 'ansible_ssh_common_args',
-        "flag": None
-    },
-    {
-        "key": 'ansible_ssh_extra_args',
-        "flag": None
-    },
-    {
-        "key": 'ansible_port',
-        "flag": '-p'
-    },
+    {"key": "ansible_ssh_private_key_file", "flag": "-i"},
+    {"key": "ansible_ssh_common_args", "flag": None},
+    {"key": "ansible_ssh_extra_args", "flag": None},
+    {"key": "ansible_port", "flag": "-p"},
 ]
 
 
-def check_python_version():
-    if not sys.version_info[:2] >= (3, 5):
-        print("You need python 3.5 or greeter")
-        raise SystemExit(1)
+def check_python_version() -> None:
+    """Ensure that the script is running on Python 3.5 or greater."""
+    if sys.version_info[:2] < (3, 5):
+        print("You need Python 3.5 or greater")
+        sys.exit(1)
 
 
-def check_executable():
-    for executable in EXECUTABLES:
+def check_executables() -> None:
+    """Ensure that all required executables are available in the system path."""
+    for executable in REQUIRED_EXECUTABLES:
         if shutil.which(executable) is None:
-            print("Can't find {} executable".format(executable))
-            print("You must have installed ansible >=2.4 and ssh client")
-            raise SystemExit(1)
+            print(f"Can't find {executable} executable")
+            print("You must have installed Ansible >=2.4 and an SSH client")
+            sys.exit(1)
 
 
-def parser_args():
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-             description="""Init an ssh interactive terminal
-                using ansible inventories""")
+        description="Initialize an SSH interactive terminal using Ansible inventories."
+    )
 
-    parser.add_argument("-i", "--inventory", required=False,
-                              help='''use a specific ansible inventory''',
-                              type=str)
-
-    parser.add_argument("-k", "--key", required=False,
-                              help='''use a specific private ssh keyfile''',
-                              type=str)
-
-    parser.add_argument("hostname", action="store", type=str,
-                        default=None, nargs='?',
-                        help='''Try to filter and connect
-                        to the unique hostname''')
+    parser.add_argument(
+        "-i", "--inventory", help="Specify an Ansible inventory file.", type=str
+    )
+    parser.add_argument("-k", "--key", help="Specify a private SSH key file.", type=str)
+    parser.add_argument(
+        "hostname", help="Connect to a specific hostname.", type=str, nargs="?"
+    )
 
     return parser.parse_args()
 
 
-def get_inventory(inventory_path):
-    ''' receive and inventory path (string) from argparse (the value could be None)
-    and run "ansible-inventory" cmd with custom or default inventory.
-    Return an ansible inventory in json format'''
-    ansible_cmd = ['ansible-inventory', '--list']
+def get_inventory(inventory_path: Optional[str]) -> Dict[str, Any]:
+    """Fetch the Ansible inventory in JSON format."""
+    ansible_cmd = ["ansible-inventory", "--list"]
     if inventory_path and os.path.exists(inventory_path):
         ansible_cmd.extend(["-i", inventory_path])
+
     print("Getting inventory... please wait")
-    proc = subprocess.run(ansible_cmd, stdout=subprocess.PIPE, timeout=20)
-    if proc.returncode != 0:
-        print(proc.stdout.decode('utf-8'))
-        raise SystemExit(proc.returncode)
-    return json.loads(proc.stdout.decode('utf-8'))
+    proc = subprocess.run(ansible_cmd, stdout=subprocess.PIPE, timeout=20, check=True)
+    return json.loads(proc.stdout.decode("utf-8"))
 
 
-def choose_host(inventory):
-    """Scan the inventory and let the user choose one host to connect.
-    Receives an inventory and return a dict with the vars of the chosen host.
-    """
+def choose_group(inventory: Dict[str, Any]) -> str:
+    """Allow the user to choose a group from the inventory."""
+    groups = inventory.keys() - {"_meta", "all", "ungrouped"}
+
+    print("Choose a group:")
+    table = PrettyTable()
+    table.field_names = ["Index", "Group Name"]
+    table.align = "l"
+    table.border = True
+
+    for index, group in enumerate(sorted(groups)):
+        table.add_row([index, group])
+
+    print(table)
+
+    while True:
+        try:
+            option = int(input("Choose a valid group index or press CTRL+C to exit: "))
+            selected_group = sorted(groups)[option]
+            return selected_group
+        except (ValueError, IndexError):
+            print("Please enter a valid index.")
+
+
+def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
+    """Allow the user to choose a host from a specific group in the inventory."""
+    hosts = inventory[group_name]["hosts"]
     all_hostvars = inventory["_meta"]["hostvars"]
-    # never wants localhost
-    for host in ["localhost", "127.0.0.1"]:
-        if host in all_hostvars:
-            all_hostvars.pop(host)
-    print("Choose a host:")
-    lines = sorted([
-                [
-                    all_hostvars[host].get("ansible_host", None),
-                    all_hostvars[host].get("ansible_ssh_host", None),
-                    all_hostvars[host].get("tags", {}).get("Name", None), # works with aws inventory plugin
-                    all_hostvars[host].get("ec2_tag_Name", None) # works with aws inventory script
-                ]
-                for host in all_hostvars
-            ])
-    termios.tcflush(sys.stdin, termios.TCIOFLUSH)
-    option = None
-    print(tabulate(lines, showindex="always"))
-    while option not in range(len(lines)):
+
+    print(f"Choose a host from group {group_name}:")
+    table = PrettyTable()
+    # Add the 'Ansible User', 'Cloud Provider', and 'Environment' columns
+    table.field_names = [
+        "Index",
+        "Host",
+        "Ansible Host",
+        "Ansible User",
+        "Cloud Provider",
+        "Environment",
+        "VPN Required",
+        "Name tag (AWS Inventory only)",
+    ]
+    table.align = "l"
+    table.border = True
+
+    for index, host in enumerate(sorted(hosts)):
+        hostvars = all_hostvars.get(host, {})
+        ansible_host = hostvars.get("ansible_host", "")
+        ansible_user = hostvars.get(
+            "ansible_user", "N/A"
+        )  # Default to "N/A" if not specified
+        name_tag = hostvars.get("tags", {}).get(
+            "Name", hostvars.get("ec2_tag_Name", "")
+        )
+        # Fetch cloud provider and environment or set to "N/A" if not present
+        cloud_provider = hostvars.get("cloud_provider", "N/A")
+        environment = hostvars.get("environment", "N/A")
+        vpn = hostvars.get("vpn", "N/A")
+        table.add_row(
+            [
+                index,
+                host,
+                ansible_host,
+                ansible_user,
+                cloud_provider,
+                environment,
+                vpn,
+                name_tag,
+            ]
+        )
+
+    print(table)
+
+    while True:
         try:
             option = int(
-                input("choose a valid option or press CRTL + C to exit: \n"))
-        except ValueError:
-            pass
-    result = lines[option][0]
-    return result
+                input(
+                    f"Choose a valid host index from group {group_name} or press CTRL+C to exit: "
+                )
+            )
+            selected_host = sorted(hosts)[option]
+            return selected_host
+        except (ValueError, IndexError):
+            print("Please enter a valid index.")
 
 
-def get_host_vars(inventory, hostname):
-    '''Receive an ansible inventory in json format
-    and the desired hostname from argparse.
-    Returns the vars (dict) of the hostname'''
+def get_host_vars(inventory: Dict[str, Any], hostname: str) -> Dict[str, Any]:
+    """Retrieve the variables for a given host in the inventory."""
     all_hostvars = inventory["_meta"]["hostvars"]
     if hostname not in all_hostvars:
         hostname = choose_host(inventory)
-    host = all_hostvars[hostname]
 
-    # Normalize host address
-    if "ansible_ssh_host" in host:
-        all_hostvars[hostname]["ansible_host"] = host["ansible_ssh_host"]
-    if "ansible_host" not in host:
-        host["ansible_host"] = hostname
-
-    return host
+    hostvars = all_hostvars[hostname]
+    hostvars.setdefault("ansible_host", hostname)
+    return hostvars
 
 
-def compose_ssh_cmd(hostvars):
-    """Compose the final ssh cmd using the vars of the host
-    Receives the inventory of a host and return list of strings."""
-    ssh_cmd = ['ssh']
-    if 'ansible_user' in hostvars:
-        host = [hostvars['ansible_user'] + '@' +
-                hostvars['ansible_host']]
-    else:
-        host = [hostvars['ansible_host']]
-    ssh_cmd.extend(host)
+def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str]) -> List[str]:
+    """Compose the SSH command using host variables."""
+    ssh_cmd = ["ssh"]
+    user_host = f"{hostvars.get('ansible_user', '')}@{hostvars['ansible_host']}".strip(
+        "@"
+    )
+    ssh_cmd.append(user_host)
+
     for opt in OPTIONAL_SSH_VARS:
-        if opt["key"] in hostvars:
+        if opt["key"] in hostvars and hostvars[opt["key"]]:
             if opt["flag"]:
-                ssh_cmd.extend([opt["flag"]])
-            ssh_cmd.extend([str(hostvars[opt["key"]])])
+                ssh_cmd.append(opt["flag"])
+            ssh_cmd.append(hostvars[opt["key"]])
+
     if private_key:
-        try:
-            private_key_flag = ssh_cmd.index("-i")
-        except:
-            private_key_flag = None
-        if private_key_flag:
-            ssh_cmd[private_key_flag+1] = private_key
-        else:
-            ssh_cmd.extend(["-i", private_key])
+        ssh_cmd.extend(["-i", private_key])
+
     return ssh_cmd
 
 
-def main():
+def main() -> None:
+    """Run the main program logic."""
     check_python_version()
-    check_executable()
-    args = parser_args()
-    hostname = args.hostname
-    inventory_path = args.inventory
-    global private_key
-    private_key = args.key
-    inventory = get_inventory(inventory_path)
-    inventory_host = get_host_vars(inventory, hostname)
-    subprocess.run(compose_ssh_cmd(inventory_host))
+    check_executables()
+
+    args = parse_args()
+    inventory = get_inventory(args.inventory)
+    selected_group = choose_group(inventory)
+    hostname = choose_host(inventory, selected_group)
+    hostvars = get_host_vars(inventory, hostname)
+    ssh_cmd = compose_ssh_cmd(hostvars, args.key)
+
+    print(f"Connecting to {hostname}...")
+    os.execvp(ssh_cmd[0], ssh_cmd)
 
 
 if __name__ == "__main__":

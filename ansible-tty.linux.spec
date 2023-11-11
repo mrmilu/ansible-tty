@@ -4,10 +4,10 @@ block_cipher = None
 
 
 a = Analysis(['ansible-tty'],
-             pathex=['/home/alex/repos/mrmilu-github/ansible-tty'],
+             pathex=['/home/iker/code/mrmilu/devops/ansible-tty'],
              binaries=[],
              datas=[],
-             hiddenimports=["tabulate"],
+             hiddenimports=["prettytable"],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],

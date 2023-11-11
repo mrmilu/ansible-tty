@@ -1,5 +1,5 @@
 FROM python:3.6-alpine
-LABEL maintainer="aizquierdo@mrmilu.com"
+LABEL maintainer="iker.blanco@mrmilu.com"
 
 RUN apk update && apk add --no-cache openssh-client sshpass build-base libffi-dev openssl-dev
 RUN mkdir /ansible-tty /workdir
