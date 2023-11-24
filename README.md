@@ -29,11 +29,11 @@ Or download the binary:
 
 Linux
 ```
-wget https://github.com/mrmilu/ansible-tty/releases/download/v0.6/ansible-tty-linux64 && mv ansible-tty-linux64 ansisble-tty && chmod +x ansible-tty
+wget https://github.com/mrmilu/ansible-tty/releases/download/0.6.1/ansible-tty-linux64 && mv ansible-tty-linux64 ansisble-tty && chmod +x ansible-tty
 ```
 Mac
 ```
-wget https://github.com/mrmilu/ansible-tty/releases/download/v0.6/ansible-tty-macos64.macos && mv ansible-tty-macos64.macos ansisble-tty && chmod +x ansible-tty
+wget https://github.com/mrmilu/ansible-tty/releases/download/0.6.1/ansible-tty-macos64.macos && mv ansible-tty-macos64.macos ansisble-tty && chmod +x ansible-tty
 ```
 ## Via docker
 You can use the public image of docker:

@@ -173,17 +173,23 @@ def get_host_vars(inventory: Dict[str, Any], hostname: str) -> Dict[str, Any]:
 def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str]) -> List[str]:
     """Compose the SSH command using host variables."""
     ssh_cmd = ["ssh"]
-    user_host = f"{hostvars.get('ansible_user', '')}@{hostvars['ansible_host']}".strip(
-        "@"
-    )
+
+    # User and Host part of the SSH command
+    user_host = f"{hostvars.get('ansible_user', '')}@{hostvars['ansible_host']}".strip("@")
     ssh_cmd.append(user_host)
 
-    for opt in OPTIONAL_SSH_VARS:
-        if opt["key"] in hostvars and hostvars[opt["key"]]:
-            if opt["flag"]:
-                ssh_cmd.append(opt["flag"])
-            ssh_cmd.append(hostvars[opt["key"]])
+    # Explicitly handle ansible_port
+    if 'ansible_port' in hostvars:
+        ssh_cmd.extend(["-p", str(hostvars['ansible_port'])])
 
+    # Handle other optional SSH variables
+    for opt in OPTIONAL_SSH_VARS:
+        if opt['key'] in hostvars and opt['key'] != 'ansible_port' and hostvars[opt['key']]:
+            if opt['flag']:
+                ssh_cmd.append(opt['flag'])
+            ssh_cmd.append(str(hostvars[opt['key']]))
+
+    # Private key if provided
     if private_key:
         ssh_cmd.extend(["-i", private_key])
 
