@@ -7,7 +7,7 @@ setup(
     author='Iker Blanco',
     author_email='iker.blanco@mrmilu.com',
     url='https://github.com/mrmilu/ansible-tty',
-    version='0.6.1',
+    version='0.7.0',
     scripts=['ansible-tty'],
     install_requires=["prettytable"],
     license='GPL-v3',

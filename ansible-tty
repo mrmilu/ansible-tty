@@ -14,6 +14,7 @@ import shutil
 import argparse
 import sys
 import os
+import re
 from prettytable import PrettyTable
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +28,7 @@ OPTIONAL_SSH_VARS = [
     {"key": "ansible_ssh_extra_args", "flag": None},
     {"key": "ansible_port", "flag": "-p"},
 ]
+
 
 
 def check_python_version() -> None:
@@ -61,9 +63,32 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+def extract_keyword_from_group(group_name: str) -> str:
+    """
+    Extract specific keywords ('production', 'staging', 'prod', 'stg') from a group name.
+    If none of these keywords are found, return the original group name.
+    """
+    # Define a regular expression pattern to match the keywords
+    pattern = r"(production|prod|staging|stg|development|develop|dev)"
+    match = re.search(pattern, group_name, re.IGNORECASE)
+
+    if match:
+        return match.group(0)  # Return the matched keyword
+    return group_name  # Return the original name if no keyword is found
+
+def shorten_group_name(group_name: str) -> str:
+    """
+    Return a shortened version of the group name based on predefined mappings.
+    """
+    return extract_keyword_from_group(group_name)
+
+
+
 
 def get_inventory(inventory_path: Optional[str]) -> Dict[str, Any]:
     """Fetch the Ansible inventory in JSON format."""
+    # Set the default inventory path if not provided
+    inventory_path = inventory_path or os.environ.get("ANSIBLE_INVENTORY", "/etc/ansible/ansible_inventory")
     ansible_cmd = ["ansible-inventory", "--list"]
     if inventory_path and os.path.exists(inventory_path):
         ansible_cmd.extend(["-i", inventory_path])
@@ -72,10 +97,31 @@ def get_inventory(inventory_path: Optional[str]) -> Dict[str, Any]:
     proc = subprocess.run(ansible_cmd, stdout=subprocess.PIPE, timeout=20, check=True)
     return json.loads(proc.stdout.decode("utf-8"))
 
+def get_top_level_groups(inventory: Dict[str, Any]) -> List[str]:
+    """
+    Get the list of top-level groups which are direct children of the 'all' group.
+    """
+    # Directly access the children of the 'all' group
+    if 'all' in inventory and 'children' in inventory['all']:
+        sorted_groups = sorted(inventory['all']['children'])
+        # remove the 'ungrouped' group if present
+        if 'ungrouped' in sorted_groups:
+            sorted_groups.remove('ungrouped')
+        return sorted_groups
+    else:
+        return []
 
-def choose_group(inventory: Dict[str, Any]) -> str:
-    """Allow the user to choose a group from the inventory."""
-    groups = inventory.keys() - {"_meta", "all", "ungrouped"}
+def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None) -> str:
+    """
+    Allow the user to choose a group from the inventory, supporting navigation through group tiers.
+    """
+    if current_level:
+        # If a current level is provided, list its children
+        groups = inventory[current_level].get("children", {})
+    else:
+        # If no current level is provided, list the top-level groups
+        groups = get_top_level_groups(inventory)
+
 
     print("Choose a group:")
     table = PrettyTable()
@@ -83,7 +129,9 @@ def choose_group(inventory: Dict[str, Any]) -> str:
     table.align = "l"
     table.border = True
 
-    for index, group in enumerate(sorted(groups)):
+    sorted_groups = sorted(groups)
+    display_names = [shorten_group_name(group) for group in sorted_groups]
+    for index, group in enumerate(display_names):
         table.add_row([index, group])
 
     print(table)
@@ -91,12 +139,17 @@ def choose_group(inventory: Dict[str, Any]) -> str:
     while True:
         try:
             option = int(input("Choose a valid group index or press CTRL+C to exit: "))
-            selected_group = sorted(groups)[option]
-            return selected_group
+            selected_group = sorted_groups[option]
+
+            # If selected group has children, go one tier deeper, else return the group
+            if "children" in inventory.get(selected_group, {}):
+                return choose_group(inventory, selected_group)
+            else:
+                return selected_group
         except (ValueError, IndexError):
             print("Please enter a valid index.")
-
-
+            
+            
 def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
     """Allow the user to choose a host from a specific group in the inventory."""
     hosts = inventory[group_name]["hosts"]
