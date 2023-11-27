@@ -57,6 +57,9 @@ def parse_args() -> argparse.Namespace:
         "-i", "--inventory", help="Specify an Ansible inventory file.", type=str
     )
     parser.add_argument("-k", "--key", help="Specify a private SSH key file.", type=str)
+    parser.add_argument("-c", "--color", help="Enable color mode for different environments", action='store_true')
+    parser.add_argument("-pb", "--production_background", help="If color enabled, background color (production)", type=str)
+    parser.add_argument("-pf", "--production_foreground", help="If color enabled, foreground color (production)", type=str)
     parser.add_argument(
         "hostname", help="Connect to a specific hostname.", type=str, nargs="?"
     )
@@ -215,13 +218,13 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
 def get_host_vars(inventory: Dict[str, Any], hostname: str) -> Dict[str, Any]:
     """Retrieve the variables for a given host in the inventory."""
     all_hostvars = inventory["_meta"]["hostvars"]
-    if hostname not in all_hostvars:
-        hostname = choose_host(inventory)
 
-    hostvars = all_hostvars[hostname]
-    hostvars.setdefault("ansible_host", hostname)
-    return hostvars
+    if hostname in all_hostvars:
+        return all_hostvars[hostname]
 
+    print(f"Host '{hostname}' not found in inventory.")
+    selected_group = choose_group(inventory)
+    return all_hostvars[choose_host(inventory, selected_group)]
 
 def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str]) -> List[str]:
     """Compose the SSH command using host variables."""
@@ -256,14 +259,24 @@ def main() -> None:
 
     args = parse_args()
     inventory = get_inventory(args.inventory)
-    selected_group = choose_group(inventory)
-    hostname = choose_host(inventory, selected_group)
-    hostvars = get_host_vars(inventory, hostname)
+
+    if args.hostname:
+        hostvars = get_host_vars(inventory, args.hostname)
+    else:
+        selected_group = choose_group(inventory)
+        selected_host = choose_host(inventory, selected_group)
+        hostvars = get_host_vars(inventory, selected_host)
+
     ssh_cmd = compose_ssh_cmd(hostvars, args.key)
 
-    print(f"Connecting to {hostname}...")
-    os.execvp(ssh_cmd[0], ssh_cmd)
+    # Optional color change for Production environments
+    if args.color and (hostvars.get('environment', '').lower() in ['prod', 'production']):
+        background_color = args.production_background or '167'
+        foreground_color = args.production_foreground or '0'
+        ssh_cmd = ['tput', 'setab', background_color, ';'] + ['tput', 'setaf', foreground_color, ';'] + ssh_cmd + [';', 'tput', 'sgr0']
 
+    print(f"Connecting to {hostvars['ansible_host']}...")
+    os.execvp('bash', ['bash', '-c', ' '.join(ssh_cmd)])
 
 if __name__ == "__main__":
     main()

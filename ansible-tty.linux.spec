@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['ansible-tty'],
-             pathex=['/home/iker/code/mrmilu/devops/ansible-tty'],
+             pathex=['ansible-tty'],
              binaries=[],
              datas=[],
              hiddenimports=["prettytable"],
