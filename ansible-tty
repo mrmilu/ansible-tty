@@ -165,11 +165,12 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
         "Index",
         "Host",
         "Ansible Host",
-        "Ansible User",
+        "User",
         "Cloud Provider",
         "Environment",
-        "VPN Required",
-        "Name tag (AWS Inventory only)",
+        "VPN",
+        "Owner",
+        "Comments",
     ]
     table.align = "l"
     table.border = True
@@ -180,13 +181,12 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
         ansible_user = hostvars.get(
             "ansible_user", "N/A"
         )  # Default to "N/A" if not specified
-        name_tag = hostvars.get("tags", {}).get(
-            "Name", hostvars.get("ec2_tag_Name", "")
-        )
         # Fetch cloud provider and environment or set to "N/A" if not present
         cloud_provider = hostvars.get("cloud_provider", "N/A")
         environment = hostvars.get("environment", "N/A")
         vpn = hostvars.get("vpn", "N/A")
+        owner = hostvars.get("owner", "N/A")
+        comments = hostvars.get("comments", "N/A")
         table.add_row(
             [
                 index,
@@ -196,7 +196,8 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
                 cloud_provider,
                 environment,
                 vpn,
-                name_tag,
+                owner,
+                comments,
             ]
         )
 
