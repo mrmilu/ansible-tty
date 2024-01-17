@@ -15,7 +15,7 @@ Tested in ubuntu, debian, alpine and arch linux, but should be work on almost li
 
 clone the project and install it.
 ```sh
-git clone https://github.com/alex-left/ansible-tty
+git clone https://github.com/mrmilu/ansible-tty
 cd ansible-tty
 sudo pip3 install .
 
