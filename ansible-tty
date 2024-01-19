@@ -72,7 +72,7 @@ def extract_keyword_from_group(group_name: str) -> str:
     If none of these keywords are found, return the original group name.
     """
     # Define a regular expression pattern to match the keywords
-    pattern = r"(production|prod|staging|stg|development|develop|dev)"
+    pattern = r"(production|prod|staging|stg|development|develop|dev|beta)"
     match = re.search(pattern, group_name, re.IGNORECASE)
 
     if match:
