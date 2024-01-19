@@ -15,7 +15,7 @@ Tested in ubuntu, debian, alpine and arch linux, but should be work on almost li
 
 clone the project and install it.
 ```sh
-git clone https://github.com/alex-left/ansible-tty
+git clone https://github.com/mrmilu/ansible-tty
 cd ansible-tty
 sudo pip3 install .
 
@@ -25,16 +25,6 @@ Or via pip:
 pip3 install https://github.com/mrmilu/ansible-tty/archive/master.zip
 ```
 
-Or download the binary:
-
-Linux
-```
-wget https://github.com/mrmilu/ansible-tty/releases/download/0.6.1/ansible-tty-linux64 && mv ansible-tty-linux64 ansisble-tty && chmod +x ansible-tty
-```
-Mac
-```
-wget https://github.com/mrmilu/ansible-tty/releases/download/0.6.1/ansible-tty-macos64.macos && mv ansible-tty-macos64.macos ansisble-tty && chmod +x ansible-tty
-```
 ## Via docker
 You can use the public image of docker:
 ```
