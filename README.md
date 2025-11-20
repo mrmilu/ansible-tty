@@ -29,6 +29,8 @@ pip3 install https://github.com/mrmilu/ansible-tty/archive/master.zip
 
 For AWS environments using SSM to connect to instances, a setup script is provided to configure AWS CLI credentials, Session Manager plugin, and SSH configuration for SSM connections.
 
+AWS credentials are mandatory to be able to connect. If you don't have credentials for specific project, request them to DevOps team.
+
 ### Features
 
 - Configures AWS credentials and profiles
