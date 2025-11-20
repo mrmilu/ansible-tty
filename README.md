@@ -64,6 +64,7 @@ python3 aws-credentials-setup.py --profile default --access-key <key> --secret-k
 - When using `--first-install` alone, it only checks system prerequisites
 - Credentials configuration is fast and can be run separately for multiple profiles
 - The script automatically detects your operating system and provides appropriate installation methods
+- **Important**: The profile name you use must match the `aws_profile` value in the devops.inventory repo. For example, if `/pneumax/staging.yaml` contains `aws_profile: pneumax`, then you should save the credentials using `--profile pneumax`
 
 ## Via docker
 You can use the public image of docker:
