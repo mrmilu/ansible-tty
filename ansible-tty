@@ -328,12 +328,36 @@ def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = Non
             return None
 
         if len(instances) > 1:
-            print(f"Warning: Multiple instances found with Name tag '{instance_name}'. Using the first one.")
+            print(f"Multiple instances found with Name tag '{instance_name}'.")
+            table = PrettyTable()
+            table.field_names = ["Index", "Instance ID", "State", "Instance Type", "Private IP"]
+            table.align = "l"
+            table.border = True
+
             for idx, inst in enumerate(instances):
                 state = inst['State']['Name']
-                print(f"  [{idx}] {inst['InstanceId']} - State: {state}")
+                instance_type = inst.get('InstanceType', 'N/A')
+                private_ip = inst.get('PrivateIpAddress', 'N/A')
+                table.add_row([idx, inst['InstanceId'], state, instance_type, private_ip])
 
-        instance_id = instances[0]['InstanceId']
+            print(table)
+
+            while True:
+                try:
+                    option = int(input("Choose a valid instance index or press CTRL+C to exit: "))
+                    if 0 <= option < len(instances):
+                        instance_id = instances[option]['InstanceId']
+                        break
+                    else:
+                        print(f"Please enter a valid index between 0 and {len(instances) - 1}.")
+                except ValueError:
+                    print("Please enter a valid number.")
+                except KeyboardInterrupt:
+                    print("\nOperation cancelled.")
+                    sys.exit(0)
+        else:
+            instance_id = instances[0]['InstanceId']
+
         print(f"✓ Found instance: {instance_name} -> {instance_id}")
         return instance_id
 
