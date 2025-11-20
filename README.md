@@ -25,6 +25,46 @@ Or via pip:
 pip3 install https://github.com/mrmilu/ansible-tty/archive/master.zip
 ```
 
+## SSM Setup
+
+For AWS environments using SSM to connect to instances, a setup script is provided to configure AWS CLI credentials, Session Manager plugin, and SSH configuration for SSM connections.
+
+### Features
+
+- Configures AWS credentials and profiles
+- Checks and installs AWS CLI (with guidance)
+- Checks and installs AWS Session Manager plugin
+- Configures SSH for SSM connections to EC2 instances
+- Supports multiple operating systems (macOS, Linux, Windows)
+
+### Usage
+
+**First-time setup** (checks AWS CLI, SSM plugin, configures SSH):
+```bash
+python3 aws-credentials-setup.py --first-install
+```
+
+**Configure AWS credentials** for a profile, your profile must match the profile used in the inventory repo:
+```bash
+python3 aws-credentials-setup.py --profile <profile-name> --access-key <key> --secret-key <secret>
+```
+
+**Configure with custom region**:
+```bash
+python3 aws-credentials-setup.py --profile production --access-key <key> --secret-key <secret> --region us-east-1
+```
+
+**Complete setup** (first-time checks + credentials in one step):
+```bash
+python3 aws-credentials-setup.py --profile default --access-key <key> --secret-key <secret> --first-install
+```
+
+### Notes
+
+- When using `--first-install` alone, it only checks system prerequisites
+- Credentials configuration is fast and can be run separately for multiple profiles
+- The script automatically detects your operating system and provides appropriate installation methods
+
 ## Via docker
 You can use the public image of docker:
 ```

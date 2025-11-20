@@ -9,7 +9,7 @@ setup(
     url='https://github.com/mrmilu/ansible-tty',
     version='0.9.1',
     scripts=['ansible-tty'],
-    install_requires=["prettytable"],
+    install_requires=["prettytable", "boto3"],
     license='GPL-v3',
     long_description=open('README.md').read(),
 )
