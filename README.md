@@ -27,7 +27,7 @@ pip3 install https://github.com/mrmilu/ansible-tty/archive/master.zip
 ### Notes
 
 * Do a pull from the devops inventory repo to get new inventories.
-* To update the tty binary, do a  ```sudo pip3 install```
+* To update the tty binary, do a  ```sudo pip3 install .```
 
 ## SSM Setup
 
