@@ -15,6 +15,7 @@ import argparse
 import sys
 import os
 import re
+import logging
 from prettytable import PrettyTable
 from typing import Any, Dict, List, Optional
 
@@ -24,6 +25,13 @@ try:
     BOTO3_AVAILABLE = True
 except ImportError:
     BOTO3_AVAILABLE = False
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # List of required executables
 REQUIRED_EXECUTABLES = ["ssh", "ansible-inventory"]
@@ -41,7 +49,7 @@ OPTIONAL_SSH_VARS = [
 def check_python_version() -> None:
     """Ensure that the script is running on Python 3.5 or greater."""
     if sys.version_info[:2] < (3, 5):
-        print("You need Python 3.5 or greater")
+        logger.error("You need Python 3.5 or greater")
         sys.exit(1)
 
 
@@ -49,15 +57,15 @@ def check_executables(check_aws: bool = False) -> None:
     """Ensure that all required executables are available in the system path."""
     for executable in REQUIRED_EXECUTABLES:
         if shutil.which(executable) is None:
-            print(f"Can't find {executable} executable")
-            print("You must have installed Ansible >=2.4 and an SSH client")
+            logger.error(f"Can't find {executable} executable")
+            logger.error("You must have installed Ansible >=2.4 and an SSH client")
             sys.exit(1)
 
     # Check for AWS CLI if SSM connection is needed
     if check_aws and shutil.which("aws") is None:
-        print("Can't find 'aws' executable")
-        print("You must have installed AWS CLI and SSM plugin for SSM connections")
-        print("Install guide: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html")
+        logger.error("Can't find 'aws' executable")
+        logger.error("You must have installed AWS CLI and SSM plugin for SSM connections")
+        logger.error("Install guide: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html")
         sys.exit(1)
 
 
@@ -110,7 +118,7 @@ def get_inventory(inventory_path: Optional[str]) -> Dict[str, Any]:
     if inventory_path and os.path.exists(inventory_path):
         ansible_cmd.extend(["-i", inventory_path])
 
-    print("Getting inventory... please wait")
+    logger.info("Getting inventory... please wait")
     proc = subprocess.run(ansible_cmd, stdout=subprocess.PIPE, timeout=20, check=True)
     return json.loads(proc.stdout.decode("utf-8"))
 
@@ -140,7 +148,7 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
         groups = get_top_level_groups(inventory)
 
 
-    print("Choose a group:")
+    logger.info("Choose a group:")
     table = PrettyTable()
     table.field_names = ["Index", "Group Name"]
     table.align = "l"
@@ -151,7 +159,7 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
     for index, group in enumerate(display_names):
         table.add_row([index, group])
 
-    print(table)
+    logger.info(f"\n{table}")
 
     while True:
         try:
@@ -164,7 +172,7 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
             else:
                 return selected_group
         except (ValueError, IndexError):
-            print("Please enter a valid index.")
+            logger.warning("Please enter a valid index.")
             
             
 def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
@@ -172,7 +180,7 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
     hosts = inventory[group_name]["hosts"]
     all_hostvars = inventory["_meta"]["hostvars"]
 
-    print(f"Choose a host from group {group_name}:")
+    logger.info(f"Choose a host from group {group_name}:")
     table = PrettyTable()
     # Add the 'Ansible User', 'Cloud Provider', 'Environment', and 'Connection' columns
     table.field_names = [
@@ -224,7 +232,7 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
             ]
         )
 
-    print(table)
+    logger.info(f"\n{table}")
 
     while True:
         try:
@@ -236,7 +244,7 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
             selected_host = sorted(hosts)[option]
             return selected_host
         except (ValueError, IndexError):
-            print("Please enter a valid index.")
+            logger.warning("Please enter a valid index.")
 
 
 def get_host_vars(inventory: Dict[str, Any], hostname: str) -> Dict[str, Any]:
@@ -246,7 +254,7 @@ def get_host_vars(inventory: Dict[str, Any], hostname: str) -> Dict[str, Any]:
     if hostname in all_hostvars:
         return all_hostvars[hostname]
 
-    print(f"Host '{hostname}' not found in inventory.")
+    logger.warning(f"Host '{hostname}' not found in inventory.")
     selected_group = choose_group(inventory)
     return all_hostvars[choose_host(inventory, selected_group)]
 
@@ -289,7 +297,7 @@ def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = Non
         str: Instance ID if found, None otherwise
     """
     if not BOTO3_AVAILABLE:
-        print("Error: boto3 is not installed. Install it with: pip install boto3")
+        logger.error("boto3 is not installed. Install it with: pip install boto3")
         sys.exit(1)
 
     try:
@@ -324,11 +332,11 @@ def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = Non
                 instances.append(instance)
 
         if not instances:
-            print(f"Error: No EC2 instance found with Name tag '{instance_name}'")
+            logger.error(f"No EC2 instance found with Name tag '{instance_name}'")
             return None
 
         if len(instances) > 1:
-            print(f"Multiple instances found with Name tag '{instance_name}'.")
+            logger.info(f"Multiple instances found with Name tag '{instance_name}'.")
             table = PrettyTable()
             table.field_names = ["Index", "Instance ID", "State", "Instance Type", "Private IP"]
             table.align = "l"
@@ -340,7 +348,7 @@ def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = Non
                 private_ip = inst.get('PrivateIpAddress', 'N/A')
                 table.add_row([idx, inst['InstanceId'], state, instance_type, private_ip])
 
-            print(table)
+            logger.info(f"\n{table}")
 
             while True:
                 try:
@@ -349,27 +357,27 @@ def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = Non
                         instance_id = instances[option]['InstanceId']
                         break
                     else:
-                        print(f"Please enter a valid index between 0 and {len(instances) - 1}.")
+                        logger.warning(f"Please enter a valid index between 0 and {len(instances) - 1}.")
                 except ValueError:
-                    print("Please enter a valid number.")
+                    logger.warning("Please enter a valid number.")
                 except KeyboardInterrupt:
-                    print("\nOperation cancelled.")
+                    logger.info("\nOperation cancelled.")
                     sys.exit(0)
         else:
             instance_id = instances[0]['InstanceId']
 
-        print(f"✓ Found instance: {instance_name} -> {instance_id}")
+        logger.info(f"✓ Found instance: {instance_name} -> {instance_id}")
         return instance_id
 
     except NoCredentialsError:
-        print("Error: AWS credentials not found. Please configure your AWS credentials.")
-        print("Run: aws configure --profile <profile-name>")
+        logger.error("AWS credentials not found. Please configure your AWS credentials.")
+        logger.error("Run: aws configure --profile <profile-name>")
         sys.exit(1)
     except ClientError as e:
-        print(f"Error: AWS API error - {e}")
+        logger.error(f"AWS API error - {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"Error: Failed to get instance ID - {e}")
+        logger.error(f"Failed to get instance ID - {e}")
         sys.exit(1)
 
 
@@ -390,7 +398,7 @@ def compose_ssm_cmd(hostvars: Dict[str, Any]) -> List[str]:
         if not instance_id:
             sys.exit(1)
     else:
-        print("Error: Either 'instance_id' or 'instance_name' is required for SSM connections")
+        logger.error("Either 'instance_id' or 'instance_name' is required for SSM connections")
         sys.exit(1)
 
     ssm_cmd.extend(["--target", instance_id])
@@ -441,7 +449,7 @@ def main() -> None:
         foreground_color = args.production_foreground or '0'
         connection_cmd = ['tput', 'setab', background_color, ';'] + ['tput', 'setaf', foreground_color, ';'] + connection_cmd + [';', 'tput', 'sgr0']
 
-    print(f"Connecting to {target} via {connection_protocol.upper()}...")
+    logger.info(f"Connecting to {target} via {connection_protocol.upper()}...")
     os.execvp('bash', ['bash', '-c', ' '.join(connection_cmd)])
 
 if __name__ == "__main__":
