@@ -25,7 +25,15 @@ import sys
 import platform
 import subprocess
 import shutil
+import logging
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 def get_aws_config_directory() -> Path:
@@ -58,9 +66,9 @@ def ensure_aws_directory_exists(aws_dir: Path) -> None:
     ## 0o700 is 700 in octal permissions in python
     if not aws_dir.exists():
         aws_dir.mkdir(mode=0o700, parents=True)
-        print(f"Created AWS configuration directory: {aws_dir}")
+        logger.info(f"Created AWS configuration directory: {aws_dir}")
     else:
-        print(f"Using existing AWS configuration directory: {aws_dir}")
+        logger.info(f"Using existing AWS configuration directory: {aws_dir}")
 
 
 def read_file_safely(file_path: Path) -> str:
@@ -128,7 +136,7 @@ def prompt_user_override(profile: str) -> bool:
         elif response in ["n", "no"]:
             return False
         else:
-            print("Please answer 'y' or 'n'.")
+            logger.warning("Please answer 'y' or 'n'.")
 
 
 def update_credentials_file(
@@ -187,7 +195,7 @@ def update_credentials_file(
     credentials_file.chmod(
         0o600
     )  # Set file permissions to read/write for owner only in octal
-    print(f"✓ Credentials for profile '{profile}' saved to {credentials_file}")
+    logger.info(f"✓ Credentials for profile '{profile}' saved to {credentials_file}")
 
 
 def update_config_file(config_file: Path, profile: str, region: str) -> None:
@@ -246,7 +254,7 @@ def update_config_file(config_file: Path, profile: str, region: str) -> None:
     config_file.chmod(
         0o600
     )  # Set file permissions to read/write for owner only in octal
-    print(f"✓ Region '{region}' for profile '{profile}' saved to {config_file}")
+    logger.info(f"✓ Region '{region}' for profile '{profile}' saved to {config_file}")
 
 
 def check_aws_cli_installed() -> bool:
@@ -279,38 +287,38 @@ def install_aws_cli() -> None:
     """
     system = platform.system()
 
-    print("AWS CLI is not installed.")
-    print()
-    print("Installation instructions:")
-    print()
+    logger.error("AWS CLI is not installed.")
+    logger.info("")
+    logger.info("Installation instructions:")
+    logger.info("")
 
     if system == "Darwin":  # macOS
-        print("Option 1 - Using Homebrew (recommended):")
-        print("  brew install awscli")
-        print()
-        print("Option 2 - Using the official installer:")
-        print("  curl 'https://awscli.amazonaws.com/AWSCLIV2.pkg' -o 'AWSCLIV2.pkg'")
-        print("  sudo installer -pkg AWSCLIV2.pkg -target /")
+        logger.info("Option 1 - Using Homebrew (recommended):")
+        logger.info("  brew install awscli")
+        logger.info("")
+        logger.info("Option 2 - Using the official installer:")
+        logger.info("  curl 'https://awscli.amazonaws.com/AWSCLIV2.pkg' -o 'AWSCLIV2.pkg'")
+        logger.info("  sudo installer -pkg AWSCLIV2.pkg -target /")
 
     elif system == "Linux":
-        print("Using the official installer:")
-        print(
+        logger.info("Using the official installer:")
+        logger.info(
             "  curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip'"
         )
-        print("  unzip awscliv2.zip")
-        print("  sudo ./aws/install")
+        logger.info("  unzip awscliv2.zip")
+        logger.info("  sudo ./aws/install")
 
     elif system == "Windows":
-        print("Download and run the MSI installer from:")
-        print("  https://awscli.amazonaws.com/AWSCLIV2.msi")
+        logger.info("Download and run the MSI installer from:")
+        logger.info("  https://awscli.amazonaws.com/AWSCLIV2.msi")
 
     else:
-        print(f"For {system}, visit:")
-        print(
+        logger.info(f"For {system}, visit:")
+        logger.info(
             "  https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
         )
 
-    print()
+    logger.info("")
 
 
 def check_ssm_plugin_installed() -> bool:
@@ -343,86 +351,86 @@ def install_ssm_plugin() -> bool:
     system = platform.system()
     machine = platform.machine().lower()
 
-    print(f"AWS Session Manager plugin is not installed.")
-    print()
+    logger.error(f"AWS Session Manager plugin is not installed.")
+    logger.info("")
 
     if system == "Darwin":  # macOS
-        print("Installing AWS Session Manager plugin for macOS...")
-        print()
+        logger.info("Installing AWS Session Manager plugin for macOS...")
+        logger.info("")
 
         # Check if Homebrew is available
         if shutil.which("brew"):
-            print("Using Homebrew to install session-manager-plugin...")
+            logger.info("Using Homebrew to install session-manager-plugin...")
             try:
                 subprocess.run(
                     ["brew", "install", "--cask", "session-manager-plugin"], check=True
                 )
-                print("✓ Session Manager plugin installed successfully via Homebrew")
+                logger.info("✓ Session Manager plugin installed successfully via Homebrew")
                 return True
             except subprocess.CalledProcessError:
-                print("✗ Failed to install via Homebrew")
-                print()
+                logger.error("Failed to install via Homebrew")
+                logger.info("")
 
         # Fallback to manual installation instructions
-        print("Manual installation steps:")
-        print("1. Download the bundled installer:")
+        logger.info("Manual installation steps:")
+        logger.info("1. Download the bundled installer:")
         if machine == "arm64":
-            print(
+            logger.info(
                 "   curl 'https://s3.amazonaws.com/session-manager-downloads/plugin/latest/mac_arm64/sessionmanager-bundle.zip' -o 'sessionmanager-bundle.zip'"
             )
         else:
-            print(
+            logger.info(
                 "   curl 'https://s3.amazonaws.com/session-manager-downloads/plugin/latest/mac/sessionmanager-bundle.zip' -o 'sessionmanager-bundle.zip'"
             )
-        print("2. Unzip the package:")
-        print("   unzip sessionmanager-bundle.zip")
-        print("3. Run the install script:")
-        print(
+        logger.info("2. Unzip the package:")
+        logger.info("   unzip sessionmanager-bundle.zip")
+        logger.info("3. Run the install script:")
+        logger.info(
             "   sudo ./sessionmanager-bundle/install -i /usr/local/sessionmanagerplugin -b /usr/local/bin/session-manager-plugin"
         )
-        print()
+        logger.info("")
 
     elif system == "Linux":
-        print("Installing AWS Session Manager plugin for Linux...")
-        print()
+        logger.info("Installing AWS Session Manager plugin for Linux...")
+        logger.info("")
 
         # Detect package manager and architecture
         if shutil.which("dpkg"):  # Debian/Ubuntu
-            print("Detected Debian/Ubuntu system")
+            logger.info("Detected Debian/Ubuntu system")
             try:
                 arch = "64bit" if machine in ["x86_64", "amd64"] else "arm64"
                 url = f"https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_{arch}/session-manager-plugin.deb"
 
-                print(f"Downloading from {url}...")
+                logger.info(f"Downloading from {url}...")
                 subprocess.run(
                     ["curl", url, "-o", "session-manager-plugin.deb"], check=True
                 )
 
-                print("Installing package...")
+                logger.info("Installing package...")
                 subprocess.run(
                     ["sudo", "dpkg", "-i", "session-manager-plugin.deb"], check=True
                 )
 
                 # Clean up
                 os.remove("session-manager-plugin.deb")
-                print("✓ Session Manager plugin installed successfully")
+                logger.info("✓ Session Manager plugin installed successfully")
                 return True
             except subprocess.CalledProcessError as e:
-                print(f"✗ Failed to install: {e}")
-                print()
+                logger.error(f"Failed to install: {e}")
+                logger.info("")
 
         elif shutil.which("rpm"):  # RedHat/CentOS/Amazon Linux
-            print("Detected RPM-based system")
+            logger.info("Detected RPM-based system")
             try:
                 arch = "64bit" if machine in ["x86_64", "amd64"] else "arm64"
                 url = f"https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_{arch}/session-manager-plugin.rpm"
 
-                print(f"Downloading from {url}...")
+                logger.info(f"Downloading from {url}...")
                 subprocess.run(
                     ["curl", url, "-o", "session-manager-plugin.rpm"], check=True
                 )
 
-                print("Installing package...")
+                logger.info("Installing package...")
                 subprocess.run(
                     ["sudo", "yum", "install", "-y", "session-manager-plugin.rpm"],
                     check=True,
@@ -430,36 +438,36 @@ def install_ssm_plugin() -> bool:
 
                 # Clean up
                 os.remove("session-manager-plugin.rpm")
-                print("✓ Session Manager plugin installed successfully")
+                logger.info("✓ Session Manager plugin installed successfully")
                 return True
             except subprocess.CalledProcessError as e:
-                print(f"✗ Failed to install: {e}")
-                print()
+                logger.error(f"Failed to install: {e}")
+                logger.info("")
 
-        print("Manual installation steps:")
-        print("For detailed instructions, visit:")
-        print(
+        logger.info("Manual installation steps:")
+        logger.info("For detailed instructions, visit:")
+        logger.info(
             "https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html"
         )
-        print()
+        logger.info("")
 
     elif system == "Windows":
-        print("Manual installation required for Windows:")
-        print("1. Download the installer from:")
-        print(
+        logger.info("Manual installation required for Windows:")
+        logger.info("1. Download the installer from:")
+        logger.info(
             "   https://s3.amazonaws.com/session-manager-downloads/plugin/latest/windows/SessionManagerPluginSetup.exe"
         )
-        print("2. Run the installer")
-        print("3. Restart your terminal/PowerShell")
-        print()
+        logger.info("2. Run the installer")
+        logger.info("3. Restart your terminal/PowerShell")
+        logger.info("")
 
     else:
-        print(f"Unsupported operating system: {system}")
-        print("Please visit the AWS documentation for manual installation:")
-        print(
+        logger.info(f"Unsupported operating system: {system}")
+        logger.info("Please visit the AWS documentation for manual installation:")
+        logger.info(
             "https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html"
         )
-        print()
+        logger.info("")
 
     return False
 
@@ -483,7 +491,7 @@ host i-* mi-*
 
     # Check if the SSM proxy config already exists
     if "aws ssm start-session" in content and "AWS-StartSSHSession" in content:
-        print(f"✓ SSM SSH configuration already exists in {ssh_config_file}")
+        logger.info(f"✓ SSM SSH configuration already exists in {ssh_config_file}")
         return False
 
     # Append the configuration
@@ -498,7 +506,7 @@ host i-* mi-*
     # Write the updated content
     ssh_config_file.write_text(content)
     ssh_config_file.chmod(0o600)  # Set file permissions to read/write for owner only
-    print(f"✓ SSM SSH configuration added to {ssh_config_file}")
+    logger.info(f"✓ SSM SSH configuration added to {ssh_config_file}")
     return True
 
 
@@ -562,46 +570,46 @@ def main() -> None:
         configure_credentials = True
     else:
         # Invalid combination
-        print(
-            "✗ Error: When configuring credentials, you must provide --profile, --access-key, and --secret-key"
+        logger.error(
+            "When configuring credentials, you must provide --profile, --access-key, and --secret-key"
         )
-        print()
-        print("Usage:")
-        print("  # Configure credentials only:")
-        print(
+        logger.info("")
+        logger.info("Usage:")
+        logger.info("  # Configure credentials only:")
+        logger.info(
             "    python3 aws-credentials-setup.py --profile <name> --access-key <key> --secret-key <secret>"
         )
-        print()
-        print("  # First-time setup only:")
-        print("    python3 aws-credentials-setup.py --first-install")
-        print()
-        print("  # Both:")
-        print(
+        logger.info("")
+        logger.info("  # First-time setup only:")
+        logger.info("    python3 aws-credentials-setup.py --first-install")
+        logger.info("")
+        logger.info("  # Both:")
+        logger.info(
             "    python3 aws-credentials-setup.py --profile <name> --access-key <key> --secret-key <secret> --first-install"
         )
         sys.exit(1)
 
-    print(f"AWS Credentials Setup")
-    print(f"=" * 50)
-    print(f"Operating System: {platform.system()}")
+    logger.info(f"AWS Credentials Setup")
+    logger.info(f"=" * 50)
+    logger.info(f"Operating System: {platform.system()}")
     if configure_credentials:
-        print(f"Profile: {args.profile}")
-        print(f"Region: {args.region}")
-        print(
+        logger.info(f"Profile: {args.profile}")
+        logger.info(f"Region: {args.region}")
+        logger.info(
             f"Access Key: {args.access_key[:8]}..."
             if len(args.access_key) > 8
             else args.access_key
         )
     if args.first_install:
-        print(f"Mode: First-time installation checks")
+        logger.info(f"Mode: First-time installation checks")
     if configure_credentials and not args.first_install:
-        print(f"Mode: Profile configuration only")
-    print(f"=" * 50)
-    print()
+        logger.info(f"Mode: Profile configuration only")
+    logger.info(f"=" * 50)
+    logger.info("")
 
     # Check AWS CLI if first install
     if args.first_install:
-        print("Checking AWS CLI installation...")
+        logger.info("Checking AWS CLI installation...")
         if check_aws_cli_installed():
             # Get version info
             result = subprocess.run(
@@ -611,12 +619,12 @@ def main() -> None:
                 text=True,
             )
             version_output = result.stdout or result.stderr
-            print(f"✓ AWS CLI is installed: {version_output.strip()}")
+            logger.info(f"✓ AWS CLI is installed: {version_output.strip()}")
         else:
             install_aws_cli()
-            print("⚠ Please install AWS CLI and run this script again")
+            logger.warning("Please install AWS CLI and run this script again")
             sys.exit(1)
-        print()
+        logger.info("")
 
     # Configure credentials if provided
     if configure_credentials:
@@ -631,9 +639,9 @@ def main() -> None:
         # Check if profile exists and prompt for override
         if profile_exists(credentials_file, config_file, args.profile):
             if not prompt_user_override(args.profile):
-                print(f"Operation cancelled. Profile '{args.profile}' was not modified.")
+                logger.info(f"Operation cancelled. Profile '{args.profile}' was not modified.")
                 sys.exit(0)
-            print()
+            logger.info("")
 
         # Update credentials file
         update_credentials_file(
@@ -646,71 +654,71 @@ def main() -> None:
     # Only check and install SSM plugin if first install
     if args.first_install:
         # Check and install SSM plugin if needed
-        print()
-        print("Checking AWS Session Manager plugin...")
+        logger.info("")
+        logger.info("Checking AWS Session Manager plugin...")
         if check_ssm_plugin_installed():
-            print("✓ AWS Session Manager plugin is already installed")
+            logger.info("✓ AWS Session Manager plugin is already installed")
         else:
             install_ssm_plugin()
             # Verify installation
             if check_ssm_plugin_installed():
-                print("✓ AWS Session Manager plugin is now installed")
+                logger.info("✓ AWS Session Manager plugin is now installed")
             else:
-                print("⚠ AWS Session Manager plugin installation incomplete")
-                print("  Please follow the manual installation steps above")
+                logger.warning("AWS Session Manager plugin installation incomplete")
+                logger.warning("Please follow the manual installation steps above")
 
         # Update SSH config for SSM
-        print()
+        logger.info("")
         ssh_dir = Path.home() / ".ssh"
         if not ssh_dir.exists():
             ssh_dir.mkdir(mode=0o700, parents=True)
-            print(f"Created SSH directory: {ssh_dir}")
+            logger.info(f"Created SSH directory: {ssh_dir}")
 
         ssh_config_file = ssh_dir / "config"
         update_ssh_config_for_ssm(ssh_config_file)
 
-    print()
-    print("✓ Setup completed successfully!")
-    print()
+    logger.info("")
+    logger.info("✓ Setup completed successfully!")
+    logger.info("")
 
     if configure_credentials:
-        print("AWS credentials configured:")
+        logger.info("AWS credentials configured:")
         if args.profile == "default":
-            print("  aws s3 ls")
+            logger.info("  aws s3 ls")
         else:
-            print(f"  aws s3 ls --profile {args.profile}")
-        print()
-        print("To use this profile with ansible-tty:")
-        print(f"  Add 'aws_profile: {args.profile}' to your inventory host variables")
-        print()
+            logger.info(f"  aws s3 ls --profile {args.profile}")
+        logger.info("")
+        logger.info("To use this profile with ansible-tty:")
+        logger.info(f"  Add 'aws_profile: {args.profile}' to your inventory host variables")
+        logger.info("")
 
     if args.first_install and configure_credentials:
         if check_ssm_plugin_installed():
-            print(
+            logger.info(
                 "SSH config for SSM has been configured. You can now use SSH with EC2 instance IDs:"
             )
-            print("  ssh ec2-user@i-1234567890abcdef0")
+            logger.info("  ssh ec2-user@i-1234567890abcdef0")
         else:
-            print(
+            logger.info(
                 "Note: Install the AWS Session Manager plugin to use SSH with EC2 instance IDs"
             )
-        print()
+        logger.info("")
 
     if not configure_credentials and args.first_install:
-        print("Next steps:")
-        print("  Configure your AWS credentials with:")
-        print(
+        logger.info("Next steps:")
+        logger.info("  Configure your AWS credentials with:")
+        logger.info(
             "  python3 aws-credentials-setup.py --profile <name> --access-key <key> --secret-key <secret>"
         )
-        print()
+        logger.info("")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\nOperation cancelled by user.")
+        logger.info("\n\nOperation cancelled by user.")
         sys.exit(1)
     except Exception as e:
-        print(f"\n✗ Error: {e}", file=sys.stderr)
+        logger.error(f"\n✗ Error: {e}")
         sys.exit(1)

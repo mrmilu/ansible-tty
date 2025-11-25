@@ -148,7 +148,7 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
         groups = get_top_level_groups(inventory)
 
 
-    logger.info("Choose a group:")
+    print("Choose a group:")
     table = PrettyTable()
     table.field_names = ["Index", "Group Name"]
     table.align = "l"
@@ -159,7 +159,7 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
     for index, group in enumerate(display_names):
         table.add_row([index, group])
 
-    logger.info(f"\n{table}")
+    print(table)
 
     while True:
         try:
@@ -180,7 +180,7 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
     hosts = inventory[group_name]["hosts"]
     all_hostvars = inventory["_meta"]["hostvars"]
 
-    logger.info(f"Choose a host from group {group_name}:")
+    print(f"Choose a host from group {group_name}:")
     table = PrettyTable()
     # Add the 'Ansible User', 'Cloud Provider', 'Environment', and 'Connection' columns
     table.field_names = [
@@ -232,7 +232,7 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
             ]
         )
 
-    logger.info(f"\n{table}")
+    print(table)
 
     while True:
         try:
@@ -336,7 +336,7 @@ def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = Non
             return None
 
         if len(instances) > 1:
-            logger.info(f"Multiple instances found with Name tag '{instance_name}'.")
+            print(f"Multiple instances found with Name tag '{instance_name}'.")
             table = PrettyTable()
             table.field_names = ["Index", "Instance ID", "State", "Instance Type", "Private IP"]
             table.align = "l"
@@ -348,7 +348,7 @@ def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = Non
                 private_ip = inst.get('PrivateIpAddress', 'N/A')
                 table.add_row([idx, inst['InstanceId'], state, instance_type, private_ip])
 
-            logger.info(f"\n{table}")
+            print(table)
 
             while True:
                 try:
@@ -361,7 +361,7 @@ def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = Non
                 except ValueError:
                     logger.warning("Please enter a valid number.")
                 except KeyboardInterrupt:
-                    logger.info("\nOperation cancelled.")
+                    print("\nOperation cancelled.")
                     sys.exit(0)
         else:
             instance_id = instances[0]['InstanceId']
