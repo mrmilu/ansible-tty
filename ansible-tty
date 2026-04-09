@@ -164,6 +164,10 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
 
         user_input = input("Choose a valid group index, filter with '/keyword' or press CTRL+C to exit: ").strip()
 
+        if user_input == '/':
+            current_list = sorted_groups
+            continue
+
         if user_input.startswith('/'):
             filter_str = user_input[1:].lower()
             new_list = [g for g in sorted_groups if filter_str in g.lower() or filter_str in shorten_group_name(g).lower()]
@@ -233,6 +237,10 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
         print(table)
 
         user_input = input(f"Choose a valid host index, filter with '/keyword' or press CTRL+C to exit: ").strip()
+
+        if user_input == '/':
+            current_rows = rows_data
+            continue
 
         if user_input.startswith('/'):
             filter_str = user_input[1:].lower()
