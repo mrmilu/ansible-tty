@@ -151,6 +151,7 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
     current_list = sorted_groups
 
     while True:
+        os.system('clear')
         print(f"Choose a group{' (filtered)' if len(current_list) < len(sorted_groups) else ''}:")
         table = PrettyTable()
         table.field_names = ["Index", "Group Name"]
@@ -220,6 +221,7 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
     current_rows = rows_data
 
     while True:
+        os.system('clear')
         print(f"Choose a host from group {group_name}{' (filtered)' if len(current_rows) < len(rows_data) else ''}:")
         table = PrettyTable()
         table.field_names = [
