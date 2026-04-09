@@ -166,7 +166,11 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
 
         if user_input.startswith('/'):
             filter_str = user_input[1:].lower()
-            current_list = [g for g in sorted_groups if filter_str in g.lower() or filter_str in shorten_group_name(g).lower()]
+            new_list = [g for g in sorted_groups if filter_str in g.lower() or filter_str in shorten_group_name(g).lower()]
+            if not new_list:
+                print(f"\033[91mNo groups found matching '{filter_str}'. Keeping current list.\033[0m")
+            else:
+                current_list = new_list
             continue
 
         try:
@@ -232,10 +236,14 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
 
         if user_input.startswith('/'):
             filter_str = user_input[1:].lower()
-            current_rows = [
+            new_rows = [
                 row for row in rows_data
                 if any(filter_str in str(val).lower() for val in row.values())
             ]
+            if not new_rows:
+                print(f"\033[91mNo hosts found matching '{filter_str}'. Keeping current list.\033[0m")
+            else:
+                current_rows = new_rows
             continue
 
         try:
