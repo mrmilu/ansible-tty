@@ -147,24 +147,31 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
         # If no current level is provided, list the top-level groups
         groups = get_top_level_groups(inventory)
 
-
-    print("Choose a group:")
-    table = PrettyTable()
-    table.field_names = ["Index", "Group Name"]
-    table.align = "l"
-    table.border = True
-
     sorted_groups = sorted(groups)
-    display_names = [shorten_group_name(group) for group in sorted_groups]
-    for index, group in enumerate(display_names):
-        table.add_row([index, group])
-
-    print(table)
+    current_list = sorted_groups
 
     while True:
+        print(f"Choose a group{' (filtered)' if len(current_list) < len(sorted_groups) else ''}:")
+        table = PrettyTable()
+        table.field_names = ["Index", "Group Name"]
+        table.align = "l"
+        table.border = True
+
+        for index, group in enumerate(current_list):
+            table.add_row([index, shorten_group_name(group)])
+
+        print(table)
+
+        user_input = input("Choose a valid group index, filter with '/keyword' or press CTRL+C to exit: ").strip()
+
+        if user_input.startswith('/'):
+            filter_str = user_input[1:].lower()
+            current_list = [g for g in sorted_groups if filter_str in g.lower() or filter_str in shorten_group_name(g).lower()]
+            continue
+
         try:
-            option = int(input("Choose a valid group index or press CTRL+C to exit: "))
-            selected_group = sorted_groups[option]
+            option = int(user_input)
+            selected_group = current_list[option]
 
             # If selected group has children, go one tier deeper, else return the group
             if "children" in inventory.get(selected_group, {}):
@@ -177,72 +184,63 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
             
 def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
     """Allow the user to choose a host from a specific group in the inventory."""
-    hosts = inventory[group_name]["hosts"]
+    hosts = sorted(inventory[group_name]["hosts"])
     all_hostvars = inventory["_meta"]["hostvars"]
 
-    print(f"Choose a host from group {group_name}:")
-    table = PrettyTable()
-    # Add the 'Ansible User', 'Cloud Provider', 'Environment', and 'Connection' columns
-    table.field_names = [
-        "Index",
-        "Host",
-        "Target",
-        "User",
-        "Cloud Provider",
-        "Environment",
-        "Connection",
-        "VPN",
-        "Owner",
-        "Comments",
-    ]
-    table.align = "l"
-    table.border = True
-
-    for index, host in enumerate(sorted(hosts)):
+    # Pre-calculate row data for faster filtering and display
+    rows_data = []
+    for host in hosts:
         hostvars = all_hostvars.get(host, {})
         connection_protocol = hostvars.get("connection_protocol", "ssh").upper()
-
-        # For SSM, show instance_id or instance_name, for SSH show ansible_host
         if connection_protocol == "SSM":
             target = hostvars.get("instance_id") or hostvars.get("instance_name", "N/A")
         else:
             target = hostvars.get("ansible_host", "N/A")
 
-        ansible_user = hostvars.get(
-            "ansible_user", "N/A"
-        )  # Default to "N/A" if not specified
-        # Fetch cloud provider and environment or set to "N/A" if not present
-        cloud_provider = hostvars.get("cloud_provider", "N/A")
-        environment = hostvars.get("environment", "N/A")
-        vpn = hostvars.get("vpn", "N/A")
-        owner = hostvars.get("owner", "N/A")
-        comments = hostvars.get("comments", "N/A")
-        table.add_row(
-            [
-                index,
-                host,
-                target,
-                ansible_user,
-                cloud_provider,
-                environment,
-                connection_protocol,
-                vpn,
-                owner,
-                comments,
-            ]
-        )
+        rows_data.append({
+            "host": host,
+            "target": target,
+            "user": hostvars.get("ansible_user", "N/A"),
+            "cloud": hostvars.get("cloud_provider", "N/A"),
+            "env": hostvars.get("environment", "N/A"),
+            "conn": connection_protocol,
+            "vpn": hostvars.get("vpn", "N/A"),
+            "owner": hostvars.get("owner", "N/A"),
+            "comments": hostvars.get("comments", "N/A"),
+        })
 
-    print(table)
+    current_rows = rows_data
 
     while True:
+        print(f"Choose a host from group {group_name}{' (filtered)' if len(current_rows) < len(rows_data) else ''}:")
+        table = PrettyTable()
+        table.field_names = [
+            "Index", "Host", "Target", "User", "Cloud Provider", "Environment", "Connection", "VPN", "Owner", "Comments",
+        ]
+        table.align = "l"
+        table.border = True
+
+        for index, row in enumerate(current_rows):
+            table.add_row([
+                index, row["host"], row["target"], row["user"], row["cloud"],
+                row["env"], row["conn"], row["vpn"], row["owner"], row["comments"]
+            ])
+
+        print(table)
+
+        user_input = input(f"Choose a valid host index, filter with '/keyword' or press CTRL+C to exit: ").strip()
+
+        if user_input.startswith('/'):
+            filter_str = user_input[1:].lower()
+            current_rows = [
+                row for row in rows_data
+                if any(filter_str in str(val).lower() for val in row.values())
+            ]
+            continue
+
         try:
-            option = int(
-                input(
-                    f"Choose a valid host index from group {group_name} or press CTRL+C to exit: "
-                )
-            )
-            selected_host = sorted(hosts)[option]
-            return selected_host
+            option = int(user_input)
+            return current_rows[option]["host"]
         except (ValueError, IndexError):
             logger.warning("Please enter a valid index.")
 
