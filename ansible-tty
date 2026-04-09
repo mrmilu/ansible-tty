@@ -163,7 +163,19 @@ def choose_group(inventory: Dict[str, Any], current_level: Optional[str] = None)
 
         print(table)
 
-        user_input = input("Choose a valid group index, filter with '/keyword' or press CTRL+C to exit: ").strip()
+        prompt = "Choose a valid group index, filter with '/keyword'"
+        if len(current_list) == 1:
+            prompt += " or press Enter to select the only option"
+        prompt += " or press CTRL+C to exit: "
+
+        user_input = input(prompt).strip()
+
+        if not user_input and len(current_list) == 1:
+            selected_group = current_list[0]
+            if "children" in inventory.get(selected_group, {}):
+                return choose_group(inventory, selected_group)
+            else:
+                return selected_group
 
         if user_input == '/':
             current_list = sorted_groups
@@ -238,7 +250,15 @@ def choose_host(inventory: Dict[str, Any], group_name: str) -> str:
 
         print(table)
 
-        user_input = input(f"Choose a valid host index, filter with '/keyword' or press CTRL+C to exit: ").strip()
+        prompt = f"Choose a valid host index, filter with '/keyword'"
+        if len(current_rows) == 1:
+            prompt += " or press Enter to select the only option"
+        prompt += f" or press CTRL+C to exit: "
+
+        user_input = input(prompt).strip()
+
+        if not user_input and len(current_rows) == 1:
+            return current_rows[0]["host"]
 
         if user_input == '/':
             current_rows = rows_data
