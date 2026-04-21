@@ -82,6 +82,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-c", "--color", help="Enable color mode for different environments", action='store_true')
     parser.add_argument("-pb", "--production_background", help="If color enabled, background color (production)", type=str)
     parser.add_argument("-pf", "--production_foreground", help="If color enabled, foreground color (production)", type=str)
+    parser.add_argument("-ej", "--enable_jump", help="Use a jump host for SSH targets that are not directly reachable", action='store_true')
     parser.add_argument(
         "hostname", help="Connect to a specific hostname.", type=str, nargs="?"
     )
@@ -294,9 +295,12 @@ def get_host_vars(inventory: Dict[str, Any], hostname: str) -> Dict[str, Any]:
     selected_group = choose_group(inventory)
     return all_hostvars[choose_host(inventory, selected_group)]
 
-def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str]) -> List[str]:
+def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str], enable_jump: bool = False) -> List[str]:
     """Compose the SSH command using host variables."""
     ssh_cmd = ["ssh"]
+
+    if enable_jump and hostvars.get('vpn', False):
+        ssh_cmd += ["-J", "root@vpn.mrmilu.com"]
 
     # User and Host part of the SSH command
     user_host = f"{hostvars.get('ansible_user', '')}@{hostvars['ansible_host']}".strip("@")
@@ -476,7 +480,7 @@ def main() -> None:
         target = hostvars.get('instance_id') or hostvars.get('instance_name', 'unknown')
     else:
         # Default to SSH
-        connection_cmd = compose_ssh_cmd(hostvars, args.key)
+        connection_cmd = compose_ssh_cmd(hostvars, args.key, args.enable_jump)
         target = hostvars.get('ansible_host', 'unknown')
 
     # Optional color change for Production environments
