@@ -95,7 +95,7 @@ docker build -t ansible-tty .
 
 ## Usage
 ```sh
-usage: ansible-tty [-h] [-i INVENTORY] [hostname]
+usage: ansible-tty [-h] [-i INVENTORY] [-g] [hostname]
 
 Init an ssh interactive terminal using ansible inventories
 
@@ -106,9 +106,26 @@ optional arguments:
   -h, --help            show this help message and exit
   -i INVENTORY, --inventory INVENTORY
                         use a specific ansible inventory
+  -g, --generate-ssh-config
+                        Generate an ssh_config file with all hosts from the inventory.
 ```
 - If no inventory is provided, ansible-inventory will try to load the default inventory
 - If no hostname is provided, the script will scan all hosts defined in inventory and will show an interactive dialog so you can choose one of them
+
+### Generating SSH Config
+You can generate an SSH configuration file based on your inventory. This is useful for using with other tools, for simplifying SSH access, and **especially for connecting to hosts that are not directly reachable and require a ProxyJump**:
+```sh
+ansible-tty -i [your inventory] --generate-ssh-config > my_ssh_config
+```
+
+You can then use this configuration with ansible by setting the `ANSIBLE_SSH_ARGS` environment variable:
+```sh
+export ANSIBLE_SSH_ARGS="-F /path/to/my_ssh_config"
+```
+Or for a single ssh command:
+```sh
+ssh -F my_ssh_config [hostname]
+```
 
 
 ## TODO
