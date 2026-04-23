@@ -341,7 +341,7 @@ def generate_ssh_config(inventory: Dict[str, Any], private_key: Optional[str] = 
         if not ansible_host:
             continue
 
-        config_output.append(f"Host {ansible_host}")
+        config_output.append(f"Host {hostname} {ansible_host}")
         config_output.append(f"    HostName {ansible_host}")
 
         if 'ansible_user' in hostvars:
