@@ -83,6 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-pb", "--production_background", help="If color enabled, background color (production)", type=str)
     parser.add_argument("-pf", "--production_foreground", help="If color enabled, foreground color (production)", type=str)
     parser.add_argument("-ej", "--enable_jump", help="Use a jump host for SSH targets that are not directly reachable", action='store_true')
+    parser.add_argument("-g", "--generate-ssh-config", help="Generate an ssh_config file with all hosts from the inventory.", action='store_true')
     parser.add_argument(
         "hostname", help="Connect to a specific hostname.", type=str, nargs="?"
     )
@@ -324,6 +325,39 @@ def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str], enable
     return ssh_cmd
 
 
+def generate_ssh_config(inventory: Dict[str, Any], private_key: Optional[str] = None, enable_jump: bool = False) -> str:
+    """
+    Generate an SSH configuration based on the inventory.
+    """
+    all_hostvars = inventory.get("_meta", {}).get("hostvars", {})
+    config_output = []
+
+    for hostname, hostvars in sorted(all_hostvars.items()):
+        # Only process hosts with SSH connection protocol
+        if hostvars.get('connection_protocol', 'ssh').lower() != 'ssh':
+            continue
+
+        ansible_host = hostvars.get('ansible_host')
+        if not ansible_host:
+            continue
+
+        config_output.append(f"Host {hostname} {ansible_host}")
+        config_output.append(f"    HostName {ansible_host}")
+
+        if 'ansible_user' in hostvars:
+            config_output.append(f"    User {hostvars['ansible_user']}")
+
+        if 'ansible_port' in hostvars:
+            config_output.append(f"    Port {hostvars['ansible_port']}")
+
+        if hostvars.get('vpn', False):
+            config_output.append("    ProxyJump root@vpn.mrmilu.com")
+
+        config_output.append("")
+
+    return "\n".join(config_output)
+
+
 def get_instance_id_by_name(instance_name: str, aws_profile: Optional[str] = None, aws_region: Optional[str] = None) -> Optional[str]:
     """
     Get EC2 instance ID by instance name using boto3.
@@ -461,6 +495,10 @@ def main() -> None:
 
     args = parse_args()
     inventory = get_inventory(args.inventory)
+
+    if args.generate_ssh_config:
+        print(generate_ssh_config(inventory, args.key, args.enable_jump))
+        sys.exit(0)
 
     if args.hostname:
         hostvars = get_host_vars(inventory, args.hostname)
