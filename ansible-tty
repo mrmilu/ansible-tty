@@ -140,10 +140,33 @@ def check_inventory_token(inventory_path: Optional[str]) -> None:
         sys.exit(1)
 
 
+def find_sentinel_inventory_script() -> Optional[str]:
+    """
+    Locate the sentinel dynamic inventory script, whether installed as a sibling
+    of this script (pip install) or run in place from a repo checkout.
+    """
+    script_dir = os.path.dirname(os.path.realpath(sys.argv[0]))
+    candidates = [
+        os.path.join(script_dir, "sentinel_inventory.py"),
+        os.path.join(script_dir, "inventory", "sentinel_inventory.py"),
+    ]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    return shutil.which("sentinel_inventory.py")
+
+
 def get_inventory(inventory_path: Optional[str]) -> Dict[str, Any]:
     """Fetch the Ansible inventory in JSON format."""
-    # Set the default inventory path if not provided
-    inventory_path = inventory_path or os.environ.get("ANSIBLE_INVENTORY", "/etc/ansible/ansible_inventory")
+    if not inventory_path:
+        if os.environ.get("ANSIBLE_INVENTORY_TOKEN"):
+            inventory_path = find_sentinel_inventory_script()
+            if not inventory_path:
+                logger.error("ANSIBLE_INVENTORY_TOKEN is set but the sentinel dynamic inventory script could not be found")
+                sys.exit(1)
+        else:
+            inventory_path = os.environ.get("ANSIBLE_INVENTORY", "/etc/ansible/ansible_inventory")
+
     check_inventory_token(inventory_path)
     ansible_cmd = ["ansible-inventory", "--list"]
     if inventory_path and os.path.exists(inventory_path):
