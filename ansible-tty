@@ -92,30 +92,59 @@ def parse_args() -> argparse.Namespace:
 
 def extract_keyword_from_group(group_name: str) -> str:
     """
-    Extract specific keywords ('production', 'staging', 'prod', 'stg') from a group name.
+    Extract specific keywords ('production', 'prod', 'staging', 'stg', 'development',
+    'develop', 'dev', 'beta') from a group name, e.g. "env_production" -> "production".
+    Keywords only match as a whole underscore/edge-delimited segment, so a group like
+    "project_Devops" is left untouched instead of being collapsed to "Dev".
     If none of these keywords are found, return the original group name.
     """
-    # Define a regular expression pattern to match the keywords
-    pattern = r"(production|prod|staging|stg|development|develop|dev|beta)"
+    # Define a regular expression pattern to match the keywords as a whole segment
+    pattern = r"(?:^|_)(production|prod|staging|stg|development|develop|dev|beta)(?:_|$)"
     match = re.search(pattern, group_name, re.IGNORECASE)
 
     if match:
-        return match.group(0)  # Return the matched keyword
+        return match.group(1)  # Return the matched keyword
     return group_name  # Return the original name if no keyword is found
 
 def shorten_group_name(group_name: str) -> str:
     """
     Return a shortened version of the group name based on predefined mappings.
+    Project groups ("project_<name>") drop the "project_" prefix; other groups
+    fall back to keyword extraction (e.g. "env_production" -> "production").
     """
+    if group_name.startswith("project_"):
+        return group_name[len("project_"):]
     return extract_keyword_from_group(group_name)
 
 
+
+
+def check_inventory_token(inventory_path: Optional[str]) -> None:
+    """
+    Fail fast with a clear error if the resolved inventory relies on the sentinel
+    dynamic inventory script and ANSIBLE_INVENTORY_TOKEN isn't set. Without this,
+    ansible-inventory silently falls back to an empty inventory instead of surfacing
+    the missing-token error clearly.
+    """
+    if not inventory_path or not os.path.exists(inventory_path):
+        return
+
+    if os.path.isdir(inventory_path):
+        candidates = os.listdir(inventory_path)
+    else:
+        candidates = [os.path.basename(inventory_path)]
+
+    if "sentinel_inventory.py" in candidates and not os.environ.get("ANSIBLE_INVENTORY_TOKEN"):
+        logger.error("ANSIBLE_INVENTORY_TOKEN is not set")
+        logger.error("Set it to a valid sentinel bearer token, e.g.: export ANSIBLE_INVENTORY_TOKEN=<token>")
+        sys.exit(1)
 
 
 def get_inventory(inventory_path: Optional[str]) -> Dict[str, Any]:
     """Fetch the Ansible inventory in JSON format."""
     # Set the default inventory path if not provided
     inventory_path = inventory_path or os.environ.get("ANSIBLE_INVENTORY", "/etc/ansible/ansible_inventory")
+    check_inventory_token(inventory_path)
     ansible_cmd = ["ansible-inventory", "--list"]
     if inventory_path and os.path.exists(inventory_path):
         ansible_cmd.extend(["-i", inventory_path])
