@@ -109,8 +109,41 @@ optional arguments:
   -g, --generate-ssh-config
                         Generate an ssh_config file with all hosts from the inventory.
 ```
-- If no inventory is provided, ansible-inventory will try to load the default inventory
 - If no hostname is provided, the script will scan all hosts defined in inventory and will show an interactive dialog so you can choose one of them
+
+### Inventory resolution
+
+When you don't pass `-i`, ansible-tty picks an inventory in this order:
+
+1. `-i`/`--inventory` flag, if given.
+2. The sentinel dynamic inventory, if `ANSIBLE_INVENTORY_TOKEN` is set (see below).
+3. The `ANSIBLE_INVENTORY` environment variable, if set.
+4. The default static path `/etc/ansible/ansible_inventory`, if it exists.
+5. Otherwise, `ansible-inventory`'s own default inventory resolution is used.
+
+### Sentinel dynamic inventory
+
+`inventory/sentinel_inventory.py` is an Ansible dynamic inventory script that fetches hosts
+from the sentinel devops-inventory API instead of a hand-maintained file. It's installed
+alongside `ansible-tty` (same `bin` directory), so once `ANSIBLE_INVENTORY_TOKEN` is set,
+ansible-tty will use it automatically whenever no inventory is explicitly provided.
+
+```sh
+export ANSIBLE_INVENTORY_TOKEN=<your sentinel bearer token>
+ansible-tty
+```
+
+Optionally, override the sentinel API base URL (defaults to `https://sentinel.devops.mrmilu.com`):
+```sh
+export ANSIBLE_INVENTORY_API_URL=<custom sentinel base url>
+```
+
+### VPN jump host
+
+Hosts with `vpn: true` in the inventory automatically connect through a jump host
+(`root@vpn.mrmilu.com`), both for direct SSH connections and for generated SSH configs. If
+you already have the VPN client connected and don't need the jump, pass `-ej`/`--enable_jump`
+to skip it and connect directly.
 
 ### Generating SSH Config
 You can generate an SSH configuration file based on your inventory. This is useful for using with other tools, for simplifying SSH access, and **especially for connecting to hosts that are not directly reachable and require a ProxyJump**:

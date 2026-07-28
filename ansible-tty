@@ -82,7 +82,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-c", "--color", help="Enable color mode for different environments", action='store_true')
     parser.add_argument("-pb", "--production_background", help="If color enabled, background color (production)", type=str)
     parser.add_argument("-pf", "--production_foreground", help="If color enabled, foreground color (production)", type=str)
-    parser.add_argument("-ej", "--enable_jump", help="Use a jump host for SSH targets that are not directly reachable", action='store_true')
+    parser.add_argument("-ej", "--enable_jump", help="Hosts with vpn=true jump through the VPN host automatically; pass this to skip the jump and connect directly instead.", action='store_true')
     parser.add_argument("-g", "--generate-ssh-config", help="Generate an ssh_config file with all hosts from the inventory.", action='store_true')
     parser.add_argument(
         "hostname", help="Connect to a specific hostname.", type=str, nargs="?"
@@ -92,30 +92,82 @@ def parse_args() -> argparse.Namespace:
 
 def extract_keyword_from_group(group_name: str) -> str:
     """
-    Extract specific keywords ('production', 'staging', 'prod', 'stg') from a group name.
+    Extract specific keywords ('production', 'prod', 'staging', 'stg', 'development',
+    'develop', 'dev', 'beta') from a group name, e.g. "env_production" -> "production".
+    Keywords only match as a whole underscore/edge-delimited segment, so a group like
+    "project_Devops" is left untouched instead of being collapsed to "Dev".
     If none of these keywords are found, return the original group name.
     """
-    # Define a regular expression pattern to match the keywords
-    pattern = r"(production|prod|staging|stg|development|develop|dev|beta)"
+    # Define a regular expression pattern to match the keywords as a whole segment
+    pattern = r"(?:^|_)(production|prod|staging|stg|development|develop|dev|beta)(?:_|$)"
     match = re.search(pattern, group_name, re.IGNORECASE)
 
     if match:
-        return match.group(0)  # Return the matched keyword
+        return match.group(1)  # Return the matched keyword
     return group_name  # Return the original name if no keyword is found
 
 def shorten_group_name(group_name: str) -> str:
     """
     Return a shortened version of the group name based on predefined mappings.
+    Project groups ("project_<name>") drop the "project_" prefix; other groups
+    fall back to keyword extraction (e.g. "env_production" -> "production").
     """
+    if group_name.startswith("project_"):
+        return group_name[len("project_"):]
     return extract_keyword_from_group(group_name)
 
 
 
 
+def check_inventory_token(inventory_path: Optional[str]) -> None:
+    """
+    Fail fast with a clear error if the resolved inventory relies on the sentinel
+    dynamic inventory script and ANSIBLE_INVENTORY_TOKEN isn't set. Without this,
+    ansible-inventory silently falls back to an empty inventory instead of surfacing
+    the missing-token error clearly.
+    """
+    if not inventory_path or not os.path.exists(inventory_path):
+        return
+
+    if os.path.isdir(inventory_path):
+        candidates = os.listdir(inventory_path)
+    else:
+        candidates = [os.path.basename(inventory_path)]
+
+    if "sentinel_inventory.py" in candidates and not os.environ.get("ANSIBLE_INVENTORY_TOKEN"):
+        logger.error("ANSIBLE_INVENTORY_TOKEN is not set")
+        logger.error("Set it to a valid sentinel bearer token, e.g.: export ANSIBLE_INVENTORY_TOKEN=<token>")
+        sys.exit(1)
+
+
+def find_sentinel_inventory_script() -> Optional[str]:
+    """
+    Locate the sentinel dynamic inventory script, whether installed as a sibling
+    of this script (pip install) or run in place from a repo checkout.
+    """
+    script_dir = os.path.dirname(os.path.realpath(sys.argv[0]))
+    candidates = [
+        os.path.join(script_dir, "sentinel_inventory.py"),
+        os.path.join(script_dir, "inventory", "sentinel_inventory.py"),
+    ]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    return shutil.which("sentinel_inventory.py")
+
+
 def get_inventory(inventory_path: Optional[str]) -> Dict[str, Any]:
     """Fetch the Ansible inventory in JSON format."""
-    # Set the default inventory path if not provided
-    inventory_path = inventory_path or os.environ.get("ANSIBLE_INVENTORY", "/etc/ansible/ansible_inventory")
+    if not inventory_path:
+        if os.environ.get("ANSIBLE_INVENTORY_TOKEN"):
+            inventory_path = find_sentinel_inventory_script()
+            if not inventory_path:
+                logger.error("ANSIBLE_INVENTORY_TOKEN is set but the sentinel dynamic inventory script could not be found")
+                sys.exit(1)
+        else:
+            inventory_path = os.environ.get("ANSIBLE_INVENTORY", "/etc/ansible/ansible_inventory")
+
+    check_inventory_token(inventory_path)
     ansible_cmd = ["ansible-inventory", "--list"]
     if inventory_path and os.path.exists(inventory_path):
         ansible_cmd.extend(["-i", inventory_path])
@@ -296,11 +348,11 @@ def get_host_vars(inventory: Dict[str, Any], hostname: str) -> Dict[str, Any]:
     selected_group = choose_group(inventory)
     return all_hostvars[choose_host(inventory, selected_group)]
 
-def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str], enable_jump: bool = False) -> List[str]:
+def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str], skip_jump: bool = False) -> List[str]:
     """Compose the SSH command using host variables."""
     ssh_cmd = ["ssh"]
 
-    if enable_jump and hostvars.get('vpn', False):
+    if hostvars.get('vpn', False) and not skip_jump:
         ssh_cmd += ["-J", "root@vpn.mrmilu.com"]
 
     # User and Host part of the SSH command
@@ -325,7 +377,7 @@ def compose_ssh_cmd(hostvars: Dict[str, Any], private_key: Optional[str], enable
     return ssh_cmd
 
 
-def generate_ssh_config(inventory: Dict[str, Any], private_key: Optional[str] = None, enable_jump: bool = False) -> str:
+def generate_ssh_config(inventory: Dict[str, Any], private_key: Optional[str] = None, skip_jump: bool = False) -> str:
     """
     Generate an SSH configuration based on the inventory.
     """
@@ -350,7 +402,7 @@ def generate_ssh_config(inventory: Dict[str, Any], private_key: Optional[str] = 
         if 'ansible_port' in hostvars:
             config_output.append(f"    Port {hostvars['ansible_port']}")
 
-        if hostvars.get('vpn', False):
+        if hostvars.get('vpn', False) and not skip_jump:
             config_output.append("    ProxyJump root@vpn.mrmilu.com")
 
         config_output.append("")
@@ -497,7 +549,7 @@ def main() -> None:
     inventory = get_inventory(args.inventory)
 
     if args.generate_ssh_config:
-        print(generate_ssh_config(inventory, args.key, args.enable_jump))
+        print(generate_ssh_config(inventory, args.key, skip_jump=args.enable_jump))
         sys.exit(0)
 
     if args.hostname:
@@ -518,7 +570,7 @@ def main() -> None:
         target = hostvars.get('instance_id') or hostvars.get('instance_name', 'unknown')
     else:
         # Default to SSH
-        connection_cmd = compose_ssh_cmd(hostvars, args.key, args.enable_jump)
+        connection_cmd = compose_ssh_cmd(hostvars, args.key, skip_jump=args.enable_jump)
         target = hostvars.get('ansible_host', 'unknown')
 
     # Optional color change for Production environments
