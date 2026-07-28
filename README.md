@@ -138,6 +138,13 @@ Optionally, override the sentinel API base URL (defaults to `https://sentinel.de
 export ANSIBLE_INVENTORY_API_URL=<custom sentinel base url>
 ```
 
+### VPN jump host
+
+Hosts with `vpn: true` in the inventory automatically connect through a jump host
+(`root@vpn.mrmilu.com`), both for direct SSH connections and for generated SSH configs. If
+you already have the VPN client connected and don't need the jump, pass `-ej`/`--enable_jump`
+to skip it and connect directly.
+
 ### Generating SSH Config
 You can generate an SSH configuration file based on your inventory. This is useful for using with other tools, for simplifying SSH access, and **especially for connecting to hosts that are not directly reachable and require a ProxyJump**:
 ```sh
